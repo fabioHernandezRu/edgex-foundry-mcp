@@ -66,10 +66,10 @@
 
 - [x] 9.1 Rewrite `README.md`: EdgeX Foundry (LF Edge) disambiguation, quickstart (dev stack → Claude Desktop / Claude Code config → example prompts), tool table, safety model, configuration reference, OpenSpec + Claude Code workflow links, roadmap
 - [x] 9.2 Add a test that every registered tool appears in the README tool table
-- [ ] 9.3 Update `CLAUDE.md` and the skills if commands or paths changed during implementation
+- [x] 9.3 Update `CLAUDE.md` and the skills if commands or paths changed during implementation
 
 ## 10. Verification
 
 - [ ] 10.1 Run `make test lint`, `scripts/openspec_validate.sh` (strict; roadmap stubs have no deltas yet) and `scripts/publish_guard.sh`; all must be clean
-- [ ] 10.2 Run the `safety-reviewer` agent on the full diff and address its findings
+- [x] 10.2 Run the `safety-reviewer` agent on the full diff and address its findings
 - [ ] 10.3 Run the `edgex-live-check` skill if a live EdgeX is available; otherwise record that it was not run

@@ -103,3 +103,63 @@ func TestTimeConversion(t *testing.T) {
 		t.Errorf("msTime = %s", got)
 	}
 }
+
+func TestRedactURLUserinfoAndCommunity(t *testing.T) {
+	got := RedactMap(map[string]any{
+		"Endpoint":  "opc.tcp://user:example-pw@192.0.2.10:4840",
+		"Community": "example-community",
+		"Address":   "192.0.2.10",
+	})
+	if got["Endpoint"] != "opc.tcp://***REDACTED***@192.0.2.10:4840" || got["Community"] != Redacted || got["Address"] != "192.0.2.10" {
+		t.Errorf("got %v", got)
+	}
+	loc := RedactValue(map[string]any{"site": "site-a", "accessKey": "k"}).(map[string]any)
+	if loc["accessKey"] != Redacted || loc["site"] != "site-a" {
+		t.Errorf("location = %v", loc)
+	}
+}
+
+func TestShapeProfileCapsAndTruncates(t *testing.T) {
+	p := &edgex.DeviceProfile{ProfileBasicInfo: edgex.ProfileBasicInfo{Name: "Big", Description: strings.Repeat("d", 3000)}}
+	for i := range 10 {
+		p.DeviceResources = append(p.DeviceResources, edgex.DeviceResource{
+			Name: "R" + string(rune('a'+i)), Description: strings.Repeat("x", 2000),
+			Attributes: map[string]any{"note": strings.Repeat("y", 2000), "password": "example"},
+		})
+		p.DeviceCommands = append(p.DeviceCommands, edgex.DeviceCommand{Name: "C" + string(rune('a'+i))})
+	}
+	out := shapeProfile(p, false, 3)
+	if len(out.Resources) != 3 || len(out.Commands) != 3 || !out.Truncated || !strings.Contains(out.Hint, "10 resources") {
+		t.Fatalf("caps: %d resources, %d commands, truncated=%v hint=%q", len(out.Resources), len(out.Commands), out.Truncated, out.Hint)
+	}
+	r := out.Resources[0]
+	if len(r.Description) > maxStringBytes+4 || len(r.Attributes["note"].(string)) > maxStringBytes+4 || r.Attributes["password"] != Redacted {
+		t.Errorf("resource not truncated/redacted: desc=%d note=%d", len(r.Description), len(r.Attributes["note"].(string)))
+	}
+	if len(out.Description) > maxStringBytes+4 {
+		t.Errorf("profile description not truncated: %d", len(out.Description))
+	}
+	if p.DeviceResources[0].Attributes["password"] != "example" {
+		t.Error("input profile was modified")
+	}
+}
+
+func TestServerInstructions(t *testing.T) {
+	if ServerInstructions(false) != Instructions {
+		t.Error("read-only instructions changed")
+	}
+	if !strings.Contains(ServerInstructions(true), "WRITE TOOLS ARE ENABLED") {
+		t.Error("write mode not reflected in instructions")
+	}
+}
+
+func TestResolveRangeBounds(t *testing.T) {
+	for _, in := range []QueryReadingsIn{
+		{Start: "1969-12-31T00:00:00Z", End: "1970-01-02T00:00:00Z"},
+		{Start: "2024-01-01T00:00:00Z", End: "9999-01-01T00:00:00Z"},
+	} {
+		if _, _, err := resolveRange(in); err == nil || !strings.Contains(err.Error(), "1970 and 2261") {
+			t.Errorf("%+v: err = %v", in, err)
+		}
+	}
+}

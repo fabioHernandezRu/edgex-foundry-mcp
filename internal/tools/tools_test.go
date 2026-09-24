@@ -681,3 +681,12 @@ func TestReadmeListsEveryTool(t *testing.T) {
 		t.Error("README lacks the device profile resource")
 	}
 }
+
+func TestDotSegmentNameIsRejected(t *testing.T) {
+	e := newEnv(t, setup{})
+	before := len(e.fake.Requests())
+	e.mustFail(t, "get_device", map[string]any{"name": ".."}, "invalid name")
+	if len(e.fake.Requests()) != before {
+		t.Error("request reached EdgeX")
+	}
+}

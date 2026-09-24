@@ -114,6 +114,8 @@ This server can reach IoT hardware, so safety is a feature, not an afterthought.
   warning.
 - **Live device reads are explicit.** `read_device_command` makes the device service read
   the physical device.
+  - It requests a read only. What a read does on the device is defined by its device
+    service driver.
   - It always sends `ds-pushevent=false`, so no event is published or stored.
   - It always sends `ds-regexcmd=false`, so the command name is never a regex.
   - It checks first that the command supports GET, and it never retries.
@@ -122,22 +124,27 @@ This server can reach IoT hardware, so safety is a feature, not an afterthought.
   - Remove it entirely with `--disable-device-reads`.
 - **Credential redaction.** EdgeX protocol properties often carry credentials.
   - Values are redacted when their key contains `password`, `passwd`, `pwd`, `secret`,
-    `token`, `apikey`, `api_key`, `key`, `credential`, `auth`, `private` or `cert`
-    (case-insensitive).
-  - This applies to device protocols and properties, device-service properties, and
-    resource attributes, and it is recursive.
+    `token`, `apikey`, `api_key`, `key`, `credential`, `auth`, `private`, `cert` or
+    `community` (case-insensitive).
+  - Credentials embedded in URLs (`tcp://user:pass@host`) are scrubbed in values and in
+    EdgeX error messages.
+  - This applies to device protocols, properties, tags and location, device-service
+    properties, and resource attributes, and it is recursive.
   - Over-redaction is accepted. A credential stored under an innocuous key name cannot be
     detected.
 - **No secrets in logs.**
   - The bearer token is never logged, printed or included in errors.
   - It can only come from `EDGEX_TOKEN` or `--token-file`, never a flag value, so it is
     never visible in the process list.
+  - Redirects are never followed, so the token cannot be forwarded elsewhere.
+  - A token over plain `http://` to a remote gateway logs a warning.
   - Logs go to stderr only.
 - **Bounded everything.**
   - Every EdgeX request has a timeout (`--timeout`, default 10s).
   - Every list is capped by `--max-results` (default 100, maximum 1024, the EdgeX
     `MaxResultCount`), and `limit=-1` is never sent.
-  - Long values are truncated.
+  - Long values are truncated, and device profiles are capped at `--max-results`
+    resources and commands.
 - **HTTP transport.** It binds to `127.0.0.1:8080` by default and keeps the SDK's
   DNS-rebinding protection. MCP clients are not authenticated, so binding to another
   address logs a warning. Put an authenticating proxy in front if you expose it.

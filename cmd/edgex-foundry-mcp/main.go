@@ -73,7 +73,7 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 
 	server := mcp.NewServer(
 		&mcp.Implementation{Name: "edgex-foundry-mcp", Title: "EdgeX Foundry", Version: version},
-		&mcp.ServerOptions{Instructions: tools.Instructions, Logger: log},
+		&mcp.ServerOptions{Instructions: tools.ServerInstructions(cfg.EnableWrites), Logger: log},
 	)
 	names, err := tools.Register(server, client, tools.Options{
 		EnableWrites:       cfg.EnableWrites,
@@ -119,7 +119,8 @@ func serveHTTP(ctx context.Context, server *mcp.Server, addr string, log *slog.L
 	if err != nil {
 		return err
 	}
-	hs := &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	// No WriteTimeout: streamable HTTP responses may be long-lived streams.
+	hs := &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second, IdleTimeout: 120 * time.Second}
 	log.Info("MCP streamable HTTP endpoint ready", "url", "http://"+ln.Addr().String()+"/mcp")
 	if ready != nil {
 		ready <- ln.Addr().String()

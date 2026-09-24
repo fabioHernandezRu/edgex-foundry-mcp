@@ -38,6 +38,14 @@ list_device_commands shows commands; read_device_command performs a LIVE read of
 Lists are paginated: pass nextOffset as offset to get more. All times are RFC 3339 UTC.
 No tool changes EdgeX metadata or actuates devices unless the server reports write tools are enabled.`
 
+// ServerInstructions returns Instructions, adjusted when write tools are enabled.
+func ServerInstructions(enableWrites bool) string {
+	if !enableWrites {
+		return Instructions
+	}
+	return Instructions + "\nWRITE TOOLS ARE ENABLED on this server: tools without readOnlyHint can affect physical hardware or modify EdgeX metadata. Confirm with the user before calling them."
+}
+
 // registration is one tool plus the function that adds it to a server.
 type registration struct {
 	tool *mcp.Tool

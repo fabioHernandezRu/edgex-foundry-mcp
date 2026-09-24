@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -111,7 +112,13 @@ func New(o Options) (*Client, error) {
 		if err != nil {
 			return nil, err
 		}
-		c.httpc = &http.Client{Transport: tr, Timeout: o.Timeout}
+		c.httpc = &http.Client{
+			Transport: tr,
+			Timeout:   o.Timeout,
+			// EdgeX APIs never redirect; following one could resend the bearer
+			// token to another scheme (https -> http) on the same host.
+			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+		}
 	}
 	return c, nil
 }
@@ -241,6 +248,9 @@ func IsLocked(err error) bool { return StatusOf(err) == http.StatusLocked }
 
 // get performs a GET on svc and decodes the JSON body into out (if non-nil).
 func (c *Client) get(ctx context.Context, svc Service, p string, q url.Values, out any) error {
+	if !validPath(p) {
+		return ErrInvalidName
+	}
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
@@ -305,14 +315,36 @@ func isTimeout(err error) bool {
 	return errors.As(err, &t) && t.Timeout()
 }
 
+// ErrInvalidName is returned for names that would alter the request path.
+var ErrInvalidName = errors.New("invalid name: names must not be empty, \".\" or \"..\"")
+
+// validPath rejects empty, "." and ".." segments, which url.PathEscape leaves
+// unchanged and which proxies may normalize into a different route.
+func validPath(p string) bool {
+	for _, seg := range strings.Split(strings.TrimPrefix(p, "/"), "/") {
+		if seg == "" || seg == "." || seg == ".." {
+			return false
+		}
+	}
+	return true
+}
+
+var urlUserinfo = regexp.MustCompile(`([A-Za-z][A-Za-z0-9+.-]*://)[^/\s@]+@`)
+
+// ScrubURLUserinfo replaces credentials embedded in URLs
+// (scheme://user:password@host) with ***REDACTED***.
+func ScrubURLUserinfo(s string) string {
+	return urlUserinfo.ReplaceAllString(s, "${1}***REDACTED***@")
+}
+
 // errorMessage extracts the EdgeX BaseResponse message, or a short text excerpt
 // for non-JSON bodies such as the plain-text 503 "request timeout".
 func errorMessage(body []byte) string {
 	var br BaseResponse
 	if json.Unmarshal(body, &br) == nil && br.Message != "" {
-		return truncate(br.Message, maxErrorExcerpt)
+		return truncate(ScrubURLUserinfo(br.Message), maxErrorExcerpt)
 	}
-	return truncate(strings.TrimSpace(string(body)), maxErrorExcerpt)
+	return truncate(ScrubURLUserinfo(strings.TrimSpace(string(body))), maxErrorExcerpt)
 }
 
 func truncate(s string, n int) string {

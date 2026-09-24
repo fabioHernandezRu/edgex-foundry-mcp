@@ -1,6 +1,10 @@
 package tools
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/fabioHernandezRu/edgex-foundry-mcp/internal/edgex"
+)
 
 // Redacted replaces the value of credential-like keys in tool output.
 const Redacted = "***REDACTED***"
@@ -11,7 +15,7 @@ const Redacted = "***REDACTED***"
 // resource attributes.
 var sensitiveKeyParts = []string{
 	"password", "passwd", "pwd", "secret", "token", "apikey", "api_key",
-	"key", "credential", "auth", "private", "cert",
+	"key", "credential", "auth", "private", "cert", "community",
 }
 
 // IsSensitiveKey reports whether a map key likely names a credential.
@@ -26,7 +30,9 @@ func IsSensitiveKey(k string) bool {
 }
 
 // RedactMap returns a deep copy of m in which the values of sensitive keys
-// are replaced by Redacted, at any nesting depth. It returns nil for nil input.
+// are replaced by Redacted, at any nesting depth, and credentials embedded in
+// URL-like string values (scheme://user:pass@host) are scrubbed. It returns
+// nil for nil input.
 func RedactMap(m map[string]any) map[string]any {
 	if m == nil {
 		return nil
@@ -58,8 +64,13 @@ func RedactProtocols(p map[string]map[string]any) map[string]any {
 	return out
 }
 
+// RedactValue redacts an arbitrary decoded JSON value (maps, slices, strings).
+func RedactValue(v any) any { return redactValue(v) }
+
 func redactValue(v any) any {
 	switch t := v.(type) {
+	case string:
+		return edgex.ScrubURLUserinfo(t)
 	case map[string]any:
 		return RedactMap(t)
 	case []any:

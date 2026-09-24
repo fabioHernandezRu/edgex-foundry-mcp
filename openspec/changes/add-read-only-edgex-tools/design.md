@@ -118,15 +118,25 @@ complicates pagination.
   cert`.
 - It is applied to device `protocols`, device and device-service `properties`, and
   resource `attributes`.
+- String values that embed URL credentials (`scheme://user:pass@host`) are scrubbed, and
+  so are EdgeX error messages. `community` (SNMP) is a sensitive key, and device
+  `location` and `tags` are redacted too. These were added after the safety review.
 - Over-redaction is accepted.
 - Tool errors never include the response body beyond 200 bytes of an EdgeX `message`, and
   never include headers.
+
+### D10b. Token confinement (safety review)
+- The client never follows redirects (`CheckRedirect` returns `http.ErrUseLastResponse`),
+  so an https-to-http redirect on the same host cannot leak the JWT.
+- A warning is logged for a token over an `http://` gateway to a non-loopback host.
+- Empty, `.` and `..` names are rejected before any request is made.
 
 ### D11. Transports
 - **stdio:** `server.Run(ctx, &mcp.StdioTransport{})`.
 - **HTTP:** `mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return s },
   &mcp.StreamableHTTPOptions{Stateless: true})` mounted at `/mcp`, with
-  `http.Server{ReadHeaderTimeout: 10s}`.
+  `http.Server{ReadHeaderTimeout: 10s, ReadTimeout: 30s, IdleTimeout: 120s}`. There is no
+  WriteTimeout, because responses may be long-lived streams.
   - The server is stateless because it holds no per-session state.
   - The SDK's DNS-rebinding protection is on by default and must not be disabled.
   - The default bind is `127.0.0.1:8080`, and a non-loopback bind logs a warning.

@@ -183,7 +183,7 @@ func getDeviceTool(c *edgex.Client) registration {
 				AdminState: d.AdminState, OperatingState: d.OperatingState, Labels: d.Labels,
 			},
 			Parent:     d.Parent,
-			Location:   d.Location,
+			Location:   RedactValue(d.Location),
 			Protocols:  RedactProtocols(d.Protocols),
 			Properties: RedactMap(d.Properties),
 			Tags:       RedactMap(d.Tags),
@@ -289,9 +289,40 @@ type ProfileOut struct {
 	ProfileSummary
 	Resources []ResourceOut `json:"resources" jsonschema:"device resources"`
 	Commands  []CommandOut  `json:"commands,omitempty" jsonschema:"device commands"`
+	Truncated bool          `json:"truncated,omitempty" jsonschema:"true when resources or commands were capped at the server's --max-results"`
+	Hint      string        `json:"hint,omitempty" jsonschema:"guidance when the output was truncated"`
 }
 
-func shapeProfile(p *edgex.DeviceProfile, includeHidden bool) ProfileOut {
+// truncateStrings shortens long string values in a decoded JSON value.
+func truncateStrings(v any) any {
+	switch t := v.(type) {
+	case string:
+		return truncateString(t)
+	case map[string]any:
+		for k, e := range t {
+			t[k] = truncateStrings(e)
+		}
+		return t
+	case []any:
+		for i, e := range t {
+			t[i] = truncateStrings(e)
+		}
+		return t
+	default:
+		return v
+	}
+}
+
+func truncateString(s string) string {
+	if len(s) <= maxStringBytes {
+		return s
+	}
+	return s[:maxStringBytes] + "…"
+}
+
+// shapeProfile converts a profile, keeping at most max resources and max
+// commands and truncating long strings.
+func shapeProfile(p *edgex.DeviceProfile, includeHidden bool, max int) ProfileOut {
 	out := ProfileOut{
 		ProfileSummary: ProfileSummary{
 			Name: p.Name, Manufacturer: p.Manufacturer, Model: p.Model, Description: p.Description,
@@ -303,22 +334,35 @@ func shapeProfile(p *edgex.DeviceProfile, includeHidden bool) ProfileOut {
 		if r.IsHidden && !includeHidden {
 			continue
 		}
+		if len(out.Resources) >= max {
+			out.Truncated = true
+			break
+		}
+		attrs, _ := truncateStrings(RedactMap(r.Attributes)).(map[string]any)
 		out.Resources = append(out.Resources, ResourceOut{
-			Name: r.Name, Description: r.Description, ValueType: r.Properties.ValueType, ReadWrite: r.Properties.ReadWrite,
+			Name: r.Name, Description: truncateString(r.Description), ValueType: r.Properties.ValueType, ReadWrite: r.Properties.ReadWrite,
 			Units: r.Properties.Units, Minimum: r.Properties.Minimum, Maximum: r.Properties.Maximum,
-			DefaultValue: r.Properties.DefaultValue, MediaType: r.Properties.MediaType,
-			Attributes: RedactMap(r.Attributes), Hidden: r.IsHidden,
+			DefaultValue: truncateString(r.Properties.DefaultValue), MediaType: r.Properties.MediaType,
+			Attributes: attrs, Hidden: r.IsHidden,
 		})
 	}
 	for _, cmd := range p.DeviceCommands {
 		if cmd.IsHidden && !includeHidden {
 			continue
 		}
+		if len(out.Commands) >= max {
+			out.Truncated = true
+			break
+		}
 		co := CommandOut{Name: cmd.Name, ReadWrite: cmd.ReadWrite, Hidden: cmd.IsHidden, Resources: []string{}}
 		for _, op := range cmd.ResourceOperations {
 			co.Resources = append(co.Resources, op.DeviceResource)
 		}
 		out.Commands = append(out.Commands, co)
+	}
+	out.Description = truncateString(out.Description)
+	if out.Truncated {
+		out.Hint = fmt.Sprintf("resources/commands capped at %d (--max-results); the profile defines %d resources and %d commands", max, len(p.DeviceResources), len(p.DeviceCommands))
 	}
 	return out
 }
@@ -334,6 +378,6 @@ func getDeviceProfileTool(c *edgex.Client) registration {
 		if err != nil {
 			return nil, ProfileOut{}, toolError(err, fmt.Sprintf("device profile %q not found; use list_device_profiles to see profile names", in.Name))
 		}
-		return nil, shapeProfile(p, in.IncludeHidden), nil
+		return nil, shapeProfile(p, in.IncludeHidden, c.MaxResults()), nil
 	})
 }

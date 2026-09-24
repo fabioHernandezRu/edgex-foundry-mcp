@@ -189,12 +189,17 @@ func TestWarnings(t *testing.T) {
 		{"http on all interfaces", []string{"--transport", "http", "--http-addr", "0.0.0.0:8080"}, "no client authentication"},
 		{"http on empty host", []string{"--transport", "http", "--http-addr", ":8080"}, "no client authentication"},
 		{"http on loopback", []string{"--transport", "http", "--http-addr", "127.0.0.1:8080"}, ""},
+		{"cleartext gateway with token", []string{"--gateway-url", "http://192.0.2.10:8000"}, "cleartext"},
 		{"http on localhost", []string{"--transport", "http", "--http-addr", "localhost:8080"}, ""},
 		{"http on ipv6 loopback", []string{"--transport", "http", "--http-addr", "[::1]:8080"}, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, err := Load(tt.args, envFrom(nil), io.Discard)
+			env := map[string]string{}
+			if tt.want == "cleartext" {
+				env["EDGEX_TOKEN"] = "jwt"
+			}
+			c, err := Load(tt.args, envFrom(env), io.Discard)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -313,3 +313,61 @@ func TestInvalidOptions(t *testing.T) {
 		t.Error("expected error for missing CA file")
 	}
 }
+
+func TestRedirectsAreNotFollowed(t *testing.T) {
+	f := edgextest.New(t)
+	f.Handle("core-data", "/api/v3/ping", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "http://192.0.2.99/steal", http.StatusMovedPermanently)
+	})
+	c, err := edgex.New(edgex.Options{MetadataURL: f.Metadata.URL, DataURL: f.Data.URL, CommandURL: f.Command.URL, Timeout: 2 * time.Second, MaxResults: 10, Token: "t"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.Ping(context.Background(), edgex.Data)
+	if edgex.StatusOf(err) != http.StatusMovedPermanently {
+		t.Errorf("expected the 301 to be returned, not followed: %v", err)
+	}
+}
+
+func TestDotSegmentsRejected(t *testing.T) {
+	f := edgextest.New(t)
+	c := newClient(t, f, nil)
+	before := len(f.Requests())
+	for _, name := range []string{"..", ".", ""} {
+		if _, err := c.Device(context.Background(), name); !errors.Is(err, edgex.ErrInvalidName) {
+			t.Errorf("%q: err = %v", name, err)
+		}
+	}
+	if _, _, err := c.Readings(context.Background(), edgex.ReadingQuery{Device: "d", Resource: ".."}, edgex.Page{}); !errors.Is(err, edgex.ErrInvalidName) {
+		t.Errorf("resource '..': err = %v", err)
+	}
+	if len(f.Requests()) != before {
+		t.Error("invalid names reached EdgeX")
+	}
+}
+
+func TestErrorMessagesScrubURLCredentials(t *testing.T) {
+	f := edgextest.New(t)
+	f.Handle("core-command", "/api/v3/ping", func(w http.ResponseWriter, _ *http.Request) {
+		edgextest.WriteError(w, http.StatusLocked, "dial opc.tcp://operator:example-pw@192.0.2.10:4840 failed")
+	})
+	c := newClient(t, f, nil)
+	_, err := c.Ping(context.Background(), edgex.Command)
+	if err == nil || strings.Contains(err.Error(), "example-pw") || !strings.Contains(err.Error(), "opc.tcp://***REDACTED***@192.0.2.10") {
+		t.Errorf("err = %v", err)
+	}
+}
+
+func TestScrubURLUserinfo(t *testing.T) {
+	tests := map[string]string{
+		"tcp://u:p@192.0.2.1:1883":       "tcp://***REDACTED***@192.0.2.1:1883",
+		"https://192.0.2.1/path?a=b":     "https://192.0.2.1/path?a=b",
+		"see mqtt://reader@host and x":   "see mqtt://***REDACTED***@host and x",
+		"plain text with user@host.test": "plain text with user@host.test",
+	}
+	for in, want := range tests {
+		if got := edgex.ScrubURLUserinfo(in); got != want {
+			t.Errorf("%q -> %q, want %q", in, got, want)
+		}
+	}
+}

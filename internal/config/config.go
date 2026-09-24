@@ -78,6 +78,11 @@ func (c *Config) Warnings() []string {
 	if c.GatewayMode() && c.Token == "" {
 		w = append(w, "gateway mode without a token: the EdgeX API gateway will most likely answer 401; set EDGEX_TOKEN or --token-file")
 	}
+	if c.GatewayMode() && c.Token != "" {
+		if u, err := url.Parse(c.GatewayURL); err == nil && u.Scheme == "http" && !isLoopbackHost(u.Hostname()) {
+			w = append(w, "gateway URL uses http:// to a non-loopback host: the bearer token is sent in cleartext; use https://")
+		}
+	}
 	if c.Transport == TransportHTTP && !IsLoopbackAddr(c.HTTPAddr) {
 		w = append(w, fmt.Sprintf("HTTP transport listening on %s: the MCP endpoint has no client authentication and is reachable from the network", c.HTTPAddr))
 	}
@@ -90,6 +95,10 @@ func IsLoopbackAddr(addr string) bool {
 	if err != nil || host == "" {
 		return false
 	}
+	return isLoopbackHost(host)
+}
+
+func isLoopbackHost(host string) bool {
 	if host == "localhost" {
 		return true
 	}

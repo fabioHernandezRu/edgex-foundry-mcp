@@ -34,7 +34,7 @@ func registerResources(s *mcp.Server, c *edgex.Client) {
 			}
 			return nil, toolError(err, "")
 		}
-		b, err := json.Marshal(shapeProfile(p, true))
+		b, err := json.Marshal(shapeProfile(p, true, c.MaxResults()))
 		if err != nil {
 			return nil, err
 		}

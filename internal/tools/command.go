@@ -108,8 +108,8 @@ type ReadCommandOut struct {
 func readDeviceCommandTool(c *edgex.Client) registration {
 	return reg(&mcp.Tool{
 		Name: readDeviceCommandName,
-		Description: "Execute a GET command through EdgeX core-command, which makes the device service perform a LIVE read of the physical device and returns the values. " +
-			"It never writes to the device and never publishes or stores an event (ds-pushevent=false). " +
+		Description: "Execute a GET command through EdgeX core-command, which asks the device service to perform a LIVE read of the physical device and returns the values. " +
+			"It requests a read only and never publishes or stores an event (ds-pushevent=false); what a read does on the device is defined by its device service driver. " +
 			"Repeated failed reads can cause EdgeX to mark the device operating state DOWN, so prefer get_latest_readings unless a fresh value is required. " +
 			"The command must support GET (see list_device_commands).",
 		Annotations: readOnly("Read device command (live)"),

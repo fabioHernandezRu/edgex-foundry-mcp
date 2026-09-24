@@ -99,8 +99,8 @@ func resolveRange(in QueryReadingsIn) (time.Time, time.Time, error) {
 		if !start.Before(end) {
 			return time.Time{}, time.Time{}, errors.New("start must be before end")
 		}
-		if start.Unix() < 0 {
-			return time.Time{}, time.Time{}, errors.New("start must not be before 1970")
+		if start.Year() < 1970 || end.Year() > 2261 {
+			return time.Time{}, time.Time{}, errors.New("start and end must be between 1970 and 2261 (EdgeX stores nanosecond timestamps)")
 		}
 		return start.UTC(), end.UTC(), nil
 	default:
