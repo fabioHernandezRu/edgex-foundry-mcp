@@ -1,0 +1,175 @@
+# Minimal upstream EdgeX Foundry v4 (non-secure mode) + device-virtual, for
+# trying edgex-foundry-mcp locally.
+#
+# Derived from edgexfoundry/edgex-compose tag v4.0.2 (docker-compose-no-secty.yml),
+# trimmed to the services the MCP server needs. All images are multi-arch
+# (linux/amd64 and linux/arm64), so this also runs on a 64-bit Raspberry Pi 4.
+# Host ports are published on 127.0.0.1 only.
+#
+#   make dev-up      # docker compose -f dev/docker-compose.yml up -d
+#   make dev-down
+#
+# NON-SECURE MODE: no authentication, and the PostgreSQL password below is the
+# upstream development default. Do not expose these ports beyond localhost.
+name: edgex
+
+x-edgex-service: &edgex-service
+  user: "2002:2001"
+  read_only: true
+  restart: always
+  security_opt:
+    - no-new-privileges:true
+  networks:
+    - edgex-network
+  volumes:
+    - /etc/localtime:/etc/localtime:ro
+
+services:
+  database:
+    image: postgres:16.3-alpine
+    container_name: edgex-postgres
+    hostname: edgex-postgres
+    environment:
+      POSTGRES_DB: edgex_db
+      POSTGRES_PASSWORD: postgres # upstream dev default, loopback-only
+    ports:
+      - "127.0.0.1:5432:5432"
+    read_only: true
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /run
+    networks:
+      - edgex-network
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - db-data:/var/lib/postgresql/data
+
+  mqtt-broker:
+    image: eclipse-mosquitto:2.0.22
+    container_name: edgex-mqtt-broker
+    hostname: edgex-mqtt-broker
+    command: ["/usr/sbin/mosquitto", "-c", "/mosquitto-no-auth.conf"]
+    ports:
+      - "127.0.0.1:1883:1883"
+    user: "2002:2001"
+    read_only: true
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - edgex-network
+
+  core-keeper:
+    <<: *edgex-service
+    image: edgexfoundry/core-keeper:4.0.2
+    container_name: edgex-core-keeper
+    hostname: edgex-core-keeper
+    ports:
+      - "127.0.0.1:59890:59890"
+    environment:
+      EDGEX_SECURITY_SECRET_STORE: "false"
+      SERVICE_HOST: edgex-core-keeper
+      DATABASE_HOST: edgex-postgres
+      MESSAGEBUS_TYPE: mqtt
+      MESSAGEBUS_PROTOCOL: tcp
+      MESSAGEBUS_HOST: edgex-mqtt-broker
+      MESSAGEBUS_PORT: "1883"
+      MESSAGEBUS_AUTHMODE: none
+      MESSAGEBUS_SECRETNAME: ""
+    depends_on:
+      - database
+      - mqtt-broker
+
+  core-common-config-bootstrapper:
+    <<: *edgex-service
+    restart: "no" # runs once, seeds the common configuration, then exits
+    image: edgexfoundry/core-common-config-bootstrapper:4.0.2
+    container_name: edgex-core-common-config-bootstrapper
+    hostname: edgex-core-common-config-bootstrapper
+    command: ["/core-common-config-bootstrapper", "--registry", "-cp=keeper.http://edgex-core-keeper:59890"]
+    environment:
+      EDGEX_SECURITY_SECRET_STORE: "false"
+      ALL_SERVICES_DATABASE_HOST: edgex-postgres
+      ALL_SERVICES_MESSAGEBUS_HOST: edgex-mqtt-broker
+      ALL_SERVICES_REGISTRY_HOST: edgex-core-keeper
+      DEVICE_SERVICES_CLIENTS_CORE_METADATA_HOST: edgex-core-metadata
+    depends_on:
+      - core-keeper
+
+  core-metadata:
+    <<: *edgex-service
+    image: edgexfoundry/core-metadata:4.0.2
+    container_name: edgex-core-metadata
+    hostname: edgex-core-metadata
+    command: ["--registry", "-cp=keeper.http://edgex-core-keeper:59890"]
+    ports:
+      - "127.0.0.1:59881:59881"
+    environment:
+      EDGEX_SECURITY_SECRET_STORE: "false"
+      SERVICE_HOST: edgex-core-metadata
+    depends_on:
+      - core-common-config-bootstrapper
+      - core-keeper
+      - database
+
+  core-data:
+    <<: *edgex-service
+    image: edgexfoundry/core-data:4.0.2
+    container_name: edgex-core-data
+    hostname: edgex-core-data
+    command: ["--registry", "-cp=keeper.http://edgex-core-keeper:59890"]
+    ports:
+      - "127.0.0.1:59880:59880"
+    environment:
+      EDGEX_SECURITY_SECRET_STORE: "false"
+      SERVICE_HOST: edgex-core-data
+    depends_on:
+      - core-common-config-bootstrapper
+      - core-keeper
+      - database
+      - mqtt-broker
+
+  core-command:
+    <<: *edgex-service
+    image: edgexfoundry/core-command:4.0.2
+    container_name: edgex-core-command
+    hostname: edgex-core-command
+    command: ["--registry", "-cp=keeper.http://edgex-core-keeper:59890"]
+    ports:
+      - "127.0.0.1:59882:59882"
+    environment:
+      EDGEX_SECURITY_SECRET_STORE: "false"
+      SERVICE_HOST: edgex-core-command
+      EXTERNALMQTT_URL: tcp://edgex-mqtt-broker:1883
+    depends_on:
+      - core-common-config-bootstrapper
+      - core-keeper
+      - core-metadata
+      - database
+
+  device-virtual:
+    <<: *edgex-service
+    image: edgexfoundry/device-virtual:4.0.2
+    container_name: edgex-device-virtual
+    hostname: edgex-device-virtual
+    command: ["--registry", "-cp=keeper.http://edgex-core-keeper:59890"]
+    ports:
+      - "127.0.0.1:59900:59900"
+    environment:
+      EDGEX_SECURITY_SECRET_STORE: "false"
+      SERVICE_HOST: edgex-device-virtual
+    depends_on:
+      - core-common-config-bootstrapper
+      - core-data
+      - core-keeper
+      - core-metadata
+      - mqtt-broker
+
+networks:
+  edgex-network:
+    driver: bridge
+
+volumes:
+  db-data:
