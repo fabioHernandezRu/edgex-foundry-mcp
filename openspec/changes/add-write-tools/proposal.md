@@ -1,6 +1,3 @@
-> **Status: stub (Phase 2).** Only the proposal exists. Design, specs and tasks are written
-> when the change is picked up, after `scout-feature` research.
-
 ## Why
 
 Operators want an agent that can do more than observe, for example "lock this device
@@ -41,11 +38,12 @@ the tools above are added, and each goes through the registration validator.
 ## Capabilities
 
 ### New Capabilities
-- `mcp-write-tools`: the write tools, input validation, dry-run and audit logging.
+- `mcp-write-tools`: the write tools, input validation and dry-run.
 
 ### Modified Capabilities
 - `edgex-client`: adds PUT/PATCH methods, which are only reachable from write tools.
-- `safety-model`: the audit logging and destructive annotations requirements.
+- `safety-model`: the registration gate is updated now that write tools exist, and write
+  audit logging and no-retry requirements are added.
 
 ## Impact
 
