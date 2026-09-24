@@ -84,7 +84,7 @@ func exerciseAll(t *testing.T, c *edgex.Client) {
 	}
 }
 
-func TestOnlyGETRequests(t *testing.T) {
+func TestReadMethodsOnlyIssueGET(t *testing.T) {
 	f := edgextest.New(t)
 	exerciseAll(t, newClient(t, f, nil))
 	reqs := f.Requests()
@@ -369,5 +369,72 @@ func TestScrubURLUserinfo(t *testing.T) {
 		if got := edgex.ScrubURLUserinfo(in); got != want {
 			t.Errorf("%q -> %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestSetCommandRequest(t *testing.T) {
+	f := edgextest.New(t)
+	c := newClient(t, f, nil)
+	if err := c.SetCommand(context.Background(), "Random-Integer-Device", "Int8", map[string]string{"Int8": "42"}); err != nil {
+		t.Fatal(err)
+	}
+	r, _ := f.LastRequest("core-command")
+	if r.Method != http.MethodPut || r.Path != "/api/v3/device/name/Random-Integer-Device/Int8" {
+		t.Errorf("request = %s %s", r.Method, r.Path)
+	}
+	if r.Body != `{"Int8":"42"}` || r.ContentType != "application/json" {
+		t.Errorf("body = %s, content type = %s", r.Body, r.ContentType)
+	}
+	if err := c.SetCommand(context.Background(), "Random-Integer-Device", "Int8", nil); err == nil {
+		t.Error("empty values must be rejected client-side")
+	}
+}
+
+func TestSetCommandErrors(t *testing.T) {
+	f := edgextest.New(t)
+	c := newClient(t, f, nil)
+	ctx := context.Background()
+	tests := []struct {
+		device, command string
+		status          int
+	}{
+		{"Random-Integer-Device", "NoSuchCommand", 404},
+		{"Example-MQTT-Sensor", "Temperature", 423},
+		{"Random-Float-Device", "Float64", 0},
+	}
+	for _, tt := range tests {
+		err := c.SetCommand(ctx, tt.device, tt.command, map[string]string{"x": "1"})
+		if got := edgex.StatusOf(err); got != tt.status {
+			t.Errorf("%s/%s: status %d, want %d (err %v)", tt.device, tt.command, got, tt.status, err)
+		}
+	}
+}
+
+func TestUpdateDeviceState(t *testing.T) {
+	f := edgextest.New(t)
+	c := newClient(t, f, nil)
+	ctx := context.Background()
+	if err := c.UpdateDeviceState(ctx, "Random-Integer-Device", edgex.AdminStateField, "LOCKED"); err != nil {
+		t.Fatal(err)
+	}
+	r, _ := f.LastRequest("core-metadata")
+	want := `[{"apiVersion":"v3","device":{"name":"Random-Integer-Device","adminState":"LOCKED"}}]`
+	if r.Method != http.MethodPatch || r.Path != "/api/v3/device" || r.Body != want || r.ContentType != "application/json" {
+		t.Errorf("request = %s %s %s (%s)", r.Method, r.Path, r.Body, r.ContentType)
+	}
+	d, err := c.Device(ctx, "Random-Integer-Device")
+	if err != nil || d.AdminState != "LOCKED" {
+		t.Errorf("state not applied: %+v %v", d, err)
+	}
+
+	err = c.UpdateDeviceState(ctx, "No-Such-Device", edgex.OperatingStateField, "UP")
+	if !edgex.IsNotFound(err) || !strings.Contains(err.Error(), "does not exist") {
+		t.Errorf("207 item failure: %v", err)
+	}
+	if err := c.UpdateDeviceState(ctx, "Random-Integer-Device", edgex.OperatingStateField, "BROKEN"); edgex.StatusOf(err) != 400 {
+		t.Errorf("invalid state: %v", err)
+	}
+	if err := c.UpdateDeviceState(ctx, "Random-Integer-Device", "protocols", "x"); err == nil {
+		t.Error("unknown field must be rejected")
 	}
 }

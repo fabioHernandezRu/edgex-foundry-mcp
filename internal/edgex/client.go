@@ -5,6 +5,7 @@
 package edgex
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -248,6 +249,12 @@ func IsLocked(err error) bool { return StatusOf(err) == http.StatusLocked }
 
 // get performs a GET on svc and decodes the JSON body into out (if non-nil).
 func (c *Client) get(ctx context.Context, svc Service, p string, q url.Values, out any) error {
+	return c.do(ctx, http.MethodGet, svc, p, q, nil, out)
+}
+
+// do performs one request. A non-nil body is sent as JSON. Only the write
+// methods (SetCommand, UpdateDeviceState) use a method other than GET.
+func (c *Client) do(ctx context.Context, method string, svc Service, p string, q url.Values, body, out any) error {
 	if !validPath(p) {
 		return ErrInvalidName
 	}
@@ -258,11 +265,22 @@ func (c *Client) get(ctx context.Context, svc Service, p string, q url.Values, o
 	if len(q) > 0 {
 		u += "?" + q.Encode()
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	var reqBody io.Reader
+	if body != nil {
+		b, err := json.Marshal(body)
+		if err != nil {
+			return fmt.Errorf("edgex: encoding request body: %w", err)
+		}
+		reqBody = bytes.NewReader(b)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, u, reqBody)
 	if err != nil {
 		return &APIError{Service: svc, BaseURL: c.base[svc], Err: err}
 	}
 	req.Header.Set("Accept", "application/json")
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
 	}
@@ -270,7 +288,7 @@ func (c *Client) get(ctx context.Context, svc Service, p string, q url.Values, o
 	start := time.Now()
 	resp, err := c.httpc.Do(req)
 	if err != nil {
-		c.log.Debug("edgex request failed", "service", svc, "path", p, "latency", time.Since(start))
+		c.log.Debug("edgex request failed", "method", method, "service", svc, "path", p, "latency", time.Since(start))
 		ae := &APIError{Service: svc, BaseURL: c.base[svc], Err: stripURL(err)}
 		if errors.Is(err, context.DeadlineExceeded) || isTimeout(err) {
 			ae.Timeout = true
@@ -278,9 +296,9 @@ func (c *Client) get(ctx context.Context, svc Service, p string, q url.Values, o
 		return ae
 	}
 	defer func() { _ = resp.Body.Close() }()
-	c.log.Debug("edgex request", "service", svc, "path", p, "status", resp.StatusCode, "latency", time.Since(start))
+	c.log.Debug("edgex request", "method", method, "service", svc, "path", p, "status", resp.StatusCode, "latency", time.Since(start))
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBodyBytes))
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxBodyBytes))
 	if err != nil {
 		ae := &APIError{Service: svc, BaseURL: c.base[svc], Status: resp.StatusCode, Err: err}
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -289,12 +307,12 @@ func (c *Client) get(ctx context.Context, svc Service, p string, q url.Values, o
 		return ae
 	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return &APIError{Service: svc, BaseURL: c.base[svc], Status: resp.StatusCode, Message: errorMessage(body)}
+		return &APIError{Service: svc, BaseURL: c.base[svc], Status: resp.StatusCode, Message: errorMessage(respBody)}
 	}
-	if out == nil || len(body) == 0 {
+	if out == nil || len(respBody) == 0 {
 		return nil
 	}
-	if err := json.Unmarshal(body, out); err != nil {
+	if err := json.Unmarshal(respBody, out); err != nil {
 		return &APIError{Service: svc, BaseURL: c.base[svc], Status: resp.StatusCode, Message: "invalid JSON response", Err: err}
 	}
 	return nil

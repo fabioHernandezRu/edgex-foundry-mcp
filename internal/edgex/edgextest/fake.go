@@ -5,10 +5,12 @@
 package edgextest
 
 import (
+	"bytes"
 	"embed"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -32,6 +34,9 @@ type Request struct {
 	Path    string // escaped path, e.g. /api/v3/device/name/Line%201
 	Query   map[string][]string
 	Auth    string // Authorization header value
+	// ContentType and Body are recorded for requests with a body (writes).
+	ContentType string
+	Body        string
 }
 
 // Fake is a set of fake EdgeX core services.
@@ -128,15 +133,27 @@ func (f *Fake) handler(service string, route func(http.ResponseWriter, *http.Req
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		p := r.URL.EscapedPath()
 		f.mu.Lock()
-		f.requests = append(f.requests, Request{Service: service, Method: r.Method, Path: p, Query: r.URL.Query(), Auth: r.Header.Get("Authorization")})
+		body, _ := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		f.requests = append(f.requests, Request{
+			Service: service, Method: r.Method, Path: p, Query: r.URL.Query(), Auth: r.Header.Get("Authorization"),
+			ContentType: r.Header.Get("Content-Type"), Body: string(body),
+		})
 		h := f.overrides[service+" "+p]
 		f.mu.Unlock()
 		if h != nil {
 			h(w, r)
 			return
 		}
-		if r.Method != http.MethodGet {
-			WriteError(w, http.StatusMethodNotAllowed, "fake EdgeX only serves GET")
+		switch {
+		case r.Method == http.MethodPut && service == "core-command":
+			f.setCommand(w, r, p)
+			return
+		case r.Method == http.MethodPatch && service == "core-metadata" && p == "/api/v3/device":
+			f.patchDevices(w, r)
+			return
+		case r.Method != http.MethodGet:
+			WriteError(w, http.StatusMethodNotAllowed, "fake EdgeX does not serve "+r.Method+" "+p)
 			return
 		}
 		switch p {
@@ -404,4 +421,88 @@ func basicInfo(profiles []map[string]any) []map[string]any {
 		out = append(out, b)
 	}
 	return out
+}
+
+// setCommand emulates core-command PUT /api/v3/device/name/{name}/{command}:
+// 400 for a non-object body, 404 for unknown device/command, 405 for a
+// command without set, 423 for a locked or down device, 200 otherwise.
+func (f *Fake) setCommand(w http.ResponseWriter, r *http.Request, p string) {
+	s := segments(p)
+	if len(s) != 4 || s[0] != "device" || s[1] != "name" {
+		WriteError(w, 404, "route not found in fake core-command: "+p)
+		return
+	}
+	var body map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body == nil {
+		WriteError(w, 400, "failed to parse request body")
+		return
+	}
+	device, cmd := s[2], s[3]
+	if d := find(f.devices, "name", device); d != nil && (d["adminState"] == "LOCKED" || d["operatingState"] == "DOWN") {
+		WriteError(w, 423, fmt.Sprintf("request failed, status code: 423, err: device %s locked", device))
+		return
+	}
+	cc := find(f.coreCommands, "deviceName", device)
+	if cc == nil {
+		WriteError(w, 404, "device not found")
+		return
+	}
+	cmds, _ := cc["coreCommands"].([]any)
+	for _, c := range cmds {
+		m, _ := c.(map[string]any)
+		if m["name"] != cmd {
+			continue
+		}
+		if m["set"] != true {
+			WriteError(w, 405, fmt.Sprintf("command %s is read-only", cmd))
+			return
+		}
+		writeJSON(w, 200, map[string]any{"apiVersion": "v3", "statusCode": 200})
+		return
+	}
+	WriteError(w, 404, fmt.Sprintf("command %s not found", cmd))
+}
+
+// patchDevices emulates core-metadata PATCH /api/v3/device: a JSON array of
+// UpdateDeviceRequest answered with 207 and one BaseResponse per item.
+func (f *Fake) patchDevices(w http.ResponseWriter, r *http.Request) {
+	var reqs []struct {
+		APIVersion string         `json:"apiVersion"`
+		Device     map[string]any `json:"device"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&reqs); err != nil {
+		WriteError(w, 400, "failed to parse JSON: "+err.Error())
+		return
+	}
+	valid := map[string][]string{"adminState": {"LOCKED", "UNLOCKED"}, "operatingState": {"UP", "DOWN", "UNKNOWN"}}
+	for _, rq := range reqs {
+		if rq.APIVersion == "" {
+			WriteError(w, 400, "apiVersion is required")
+			return
+		}
+		for k, allowed := range valid {
+			if v, ok := rq.Device[k]; ok && !slices.Contains(allowed, fmt.Sprint(v)) {
+				WriteError(w, 400, fmt.Sprintf("invalid %s %v", k, v))
+				return
+			}
+		}
+	}
+	out := make([]map[string]any, 0, len(reqs))
+	f.mu.Lock()
+	for _, rq := range reqs {
+		name, _ := rq.Device["name"].(string)
+		d := find(f.devices, "name", name)
+		if d == nil {
+			out = append(out, map[string]any{"apiVersion": "v3", "statusCode": 404, "message": fmt.Sprintf("device %s does not exist", name)})
+			continue
+		}
+		for k := range valid {
+			if v, ok := rq.Device[k]; ok {
+				d[k] = v
+			}
+		}
+		out = append(out, map[string]any{"apiVersion": "v3", "statusCode": 200})
+	}
+	f.mu.Unlock()
+	writeJSON(w, http.StatusMultiStatus, out)
 }
