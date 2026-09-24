@@ -9,6 +9,29 @@ permissions:
   contents: read
 
 jobs:
+  go:
+    name: go (vet, lint, test, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - name: go vet
+        run: go vet ./...
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.14.0
+      - name: go test
+        run: go test -race ./...
+      - name: go build
+        run: go build ./...
+      - name: dev compose file is valid
+        run: docker compose -f dev/docker-compose.yml config -q
+
   publish-guard:
     name: publish-guard (generic rules)
     runs-on: ubuntu-latest
