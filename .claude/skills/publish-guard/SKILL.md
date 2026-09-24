@@ -34,7 +34,8 @@ error.
   hostname terms here that must never reach the public repo. Matches are printed
   MASKED, and you must never echo the full term in chat, commits or PRs. Claude's `Read`
   tool is denied on this file in `.claude/settings.json`. Only the script reads it.
-- Accepted placeholders (RFC 5737 IPs, `example.com`, `localhost`, values containing
+- Accepted placeholders (RFC 5737 IPs, `example.com`, RFC 2606 reserved TLDs such as
+  `.test`/`.example`/`.invalid`/`.localhost`, values containing
   `example`/`placeholder`/`redacted`) are allowed. Project-wide exceptions live in
   `scripts/publish_guard.allow`, one ERE per line, matched against the finding text.
 

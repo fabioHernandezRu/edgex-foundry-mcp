@@ -66,6 +66,8 @@ RULES=(
 # Built-in placeholders that are always acceptable (ERE, matched on the finding text).
 BUILTIN_ALLOW=(
   '@(example\.(com|org|net)|[a-z0-9.-]+\.example)$'
+  # RFC 2606 / RFC 6761 reserved TLDs can never be real domains.
+  '@([a-z0-9-]+\.)*(test|example|invalid|localhost)$'
   '@users\.noreply\.github\.com$'
   '(?i)(example|placeholder|redacted|changeme|dummy|fake|xxxx|\*\*\*)'
 )
