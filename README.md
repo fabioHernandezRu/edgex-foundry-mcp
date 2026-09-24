@@ -16,6 +16,20 @@ credentials and bounded output. It is written in Go on the official
 - **Status:** read-only tools by default. Write tools are available behind an explicit
   `--enable-writes` opt-in.
 
+## Install
+
+- **Release binaries** (linux/amd64 and linux/arm64, e.g. Raspberry Pi 4): download the
+  archive for your platform from the GitHub releases page, check it against
+  `checksums.txt`, and extract `edgex-foundry-mcp`.
+- **Container** (stdio):
+  `docker run -i --rm -e EDGEX_METADATA_URL=http://192.0.2.10:59881 -e EDGEX_DATA_URL=http://192.0.2.10:59880 -e EDGEX_COMMAND_URL=http://192.0.2.10:59882 ghcr.io/fabiohernandezru/edgex-foundry-mcp`.
+  Inside a container, `localhost` is the container itself, so point the variables at the
+  EdgeX host.
+- **From source:** `make build` (Go 1.25 or newer).
+
+The server is listed in the MCP registry as `io.github.fabioHernandezRu/edgex-foundry-mcp`
+(see [`server.json`](server.json)) once the first release has been published.
+
 ## Quickstart (about 5 minutes)
 
 **1. Start an EdgeX stack** (upstream images, non-secure mode, with the virtual device
@@ -254,12 +268,11 @@ This is a portfolio project, and the engineering process is visible in the repos
 
 ## Roadmap
 
-Phase 2 changes are proposed in [`openspec/changes/`](openspec/changes):
+Still open, proposed in [`openspec/changes/`](openspec/changes):
 
 - **Secure-mode end-to-end example:** API gateway, JWT and TLS.
-- **Releases:** goreleaser binaries for linux/amd64 and linux/arm64, and publishing to the
-  MCP registry.
 - **Demo:** an animated GIF in this README.
+- **Supply chain:** release signing (cosign) and SBOMs.
 
 ## License
 
