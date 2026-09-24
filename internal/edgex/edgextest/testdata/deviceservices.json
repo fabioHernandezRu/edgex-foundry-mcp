@@ -1,0 +1,4 @@
+[
+  {"created":1727000000000,"modified":1727000000000,"id":"5d3c1a2b-0000-4000-8000-000000000001","name":"device-virtual","description":"","labels":["virtual"],"baseAddress":"http://edgex-device-virtual:59900","adminState":"UNLOCKED","properties":{}},
+  {"created":1727000000000,"modified":1727000000000,"id":"5d3c1a2b-0000-4000-8000-000000000002","name":"device-mqtt","description":"MQTT device service","labels":["mqtt"],"baseAddress":"http://192.0.2.10:59982","adminState":"UNLOCKED","properties":{"BrokerPassword":"example-secret"}}
+]

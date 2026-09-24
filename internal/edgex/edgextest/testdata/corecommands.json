@@ -1,0 +1,13 @@
+[
+  {"deviceName":"Random-Integer-Device","profileName":"Random-Integer-Device","coreCommands":[
+    {"name":"Int8","get":true,"set":true,"path":"/api/v3/device/name/Random-Integer-Device/Int8","url":"http://edgex-core-command:59882","parameters":[{"resourceName":"Int8","valueType":"Int8"}]},
+    {"name":"Int16","get":true,"set":true,"path":"/api/v3/device/name/Random-Integer-Device/Int16","url":"http://edgex-core-command:59882","parameters":[{"resourceName":"Int16","valueType":"Int16"}]},
+    {"name":"WriteInt8Value","set":true,"path":"/api/v3/device/name/Random-Integer-Device/WriteInt8Value","url":"http://edgex-core-command:59882","parameters":[{"resourceName":"Int8","valueType":"Int8"}]}
+  ]},
+  {"deviceName":"Random-Float-Device","profileName":"Random-Float-Device","coreCommands":[
+    {"name":"Float64","get":true,"set":true,"path":"/api/v3/device/name/Random-Float-Device/Float64","url":"http://edgex-core-command:59882","parameters":[{"resourceName":"Float64","valueType":"Float64"}]}
+  ]},
+  {"deviceName":"Example-MQTT-Sensor","profileName":"Example-Sensor-Profile","coreCommands":[
+    {"name":"Temperature","get":true,"path":"/api/v3/device/name/Example-MQTT-Sensor/Temperature","url":"http://edgex-core-command:59882","parameters":[{"resourceName":"Temperature","valueType":"Float32"}]}
+  ]}
+]

@@ -1,0 +1,15 @@
+[
+  {"created":1727000000000,"modified":1727000000000,"id":"a1b2c3d4-0000-4000-8000-000000000001","name":"Random-Integer-Device","manufacturer":"Example Virtual Devices","description":"Example of Device-Virtual","model":"Device-Virtual-01","labels":["device-virtual-example"],"linkedDeviceCount":1,
+   "deviceResources":[
+     {"description":"Generate random int8 value","name":"Int8","isHidden":false,"properties":{"valueType":"Int8","readWrite":"RW","defaultValue":"0","minimum":-100,"maximum":100}},
+     {"description":"Generate random int16 value","name":"Int16","isHidden":false,"properties":{"valueType":"Int16","readWrite":"RW","defaultValue":"0"}},
+     {"description":"used to decide whether to re-generate a random value","name":"EnableRandomization_Int8","isHidden":true,"properties":{"valueType":"Bool","readWrite":"W","defaultValue":"true"}}
+   ],
+   "deviceCommands":[
+     {"name":"WriteInt8Value","isHidden":false,"readWrite":"W","resourceOperations":[{"deviceResource":"Int8"},{"deviceResource":"EnableRandomization_Int8","defaultValue":"false"}]}
+   ]},
+  {"created":1727000000000,"modified":1727000000000,"id":"a1b2c3d4-0000-4000-8000-000000000002","name":"Random-Float-Device","manufacturer":"Example Virtual Devices","description":"Example of Device-Virtual","model":"Device-Virtual-01","labels":["device-virtual-example"],"linkedDeviceCount":1,
+   "deviceResources":[{"description":"Generate random float64 value","name":"Float64","isHidden":false,"properties":{"valueType":"Float64","readWrite":"RW","defaultValue":"0"}}]},
+  {"created":1727000000000,"modified":1727000000000,"id":"a1b2c3d4-0000-4000-8000-000000000003","name":"Example-Sensor-Profile","manufacturer":"Example Corp","description":"Example MQTT sensor","model":"EX-1","labels":["site-a"],"linkedDeviceCount":1,
+   "deviceResources":[{"description":"Temperature","name":"Temperature","isHidden":false,"attributes":{"topic":"sensors/temp","authToken":"example-token"},"properties":{"valueType":"Float32","readWrite":"R","units":"degC"}}]}
+]

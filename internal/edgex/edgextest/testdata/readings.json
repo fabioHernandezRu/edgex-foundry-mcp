@@ -1,0 +1,7 @@
+[
+  {"id":"r-0001","origin":1727172003000000000,"deviceName":"Random-Integer-Device","resourceName":"Int8","profileName":"Random-Integer-Device","valueType":"Int8","value":"75"},
+  {"id":"r-0002","origin":1727172002000000000,"deviceName":"Random-Integer-Device","resourceName":"Int16","profileName":"Random-Integer-Device","valueType":"Int16","value":"-1200"},
+  {"id":"r-0003","origin":1727172001000000000,"deviceName":"Random-Integer-Device","resourceName":"Int8","profileName":"Random-Integer-Device","valueType":"Int8","value":"-12"},
+  {"id":"r-0004","origin":1727171988000000000,"deviceName":"Random-Integer-Device","resourceName":"Int8","profileName":"Random-Integer-Device","valueType":"Int8","value":"33"},
+  {"id":"r-0005","origin":1727172000000000000,"deviceName":"Random-Float-Device","resourceName":"Float64","profileName":"Random-Float-Device","valueType":"Float64","value":"4.2e+01","units":"degC"}
+]

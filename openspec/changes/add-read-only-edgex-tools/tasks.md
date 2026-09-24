@@ -1,27 +1,27 @@
 ## 1. Project scaffolding
 
 - [ ] 1.1 Create `go.mod` (`module github.com/fabioHernandezRu/edgex-foundry-mcp`, `go 1.25.0`) and add `github.com/modelcontextprotocol/go-sdk v1.8.0`
-- [ ] 1.2 Add `Makefile` with `build` (version via `-ldflags -X main.version`), `test` (`go test -race ./...`), `lint` (gofmt check, `go vet`, golangci-lint), `run`, `dev-up`, `dev-down`
-- [ ] 1.3 Add `.golangci.yml` (golangci-lint v2 config: default linters plus `gosec`, `bodyclose`, `noctx`, `errorlint`, `misspell`, `revive`)
+- [x] 1.2 Add `Makefile` with `build` (version via `-ldflags -X main.version`), `test` (`go test -race ./...`), `lint` (gofmt check, `go vet`, golangci-lint), `run`, `dev-up`, `dev-down`
+- [x] 1.3 Add `.golangci.yml` (golangci-lint v2 config: default linters plus `gosec`, `bodyclose`, `noctx`, `errorlint`, `misspell`, `revive`)
 
 ## 2. Configuration (`internal/config`)
 
-- [ ] 2.1 Implement the `Config` struct and `Load(args, getenv)` with flag > env > default precedence, for every setting in the configuration spec
-- [ ] 2.2 Implement gateway mode vs direct-URL conflict detection, and token loading from `EDGEX_TOKEN` or `--token-file` (trimmed; both set is an error)
-- [ ] 2.3 Implement `Validate()`: absolute http(s) URLs, timeout 1s..5m, max-results 1..1024, transport stdio|http; error messages never include the token
-- [ ] 2.4 Write table-driven tests covering every configuration spec scenario
+- [x] 2.1 Implement the `Config` struct and `Load(args, getenv)` with flag > env > default precedence, for every setting in the configuration spec
+- [x] 2.2 Implement gateway mode vs direct-URL conflict detection, and token loading from `EDGEX_TOKEN` or `--token-file` (trimmed; both set is an error)
+- [x] 2.3 Implement `Validate()`: absolute http(s) URLs, timeout 1s..5m, max-results 1..1024, transport stdio|http; error messages never include the token
+- [x] 2.4 Write table-driven tests covering every configuration spec scenario
 
 ## 3. EdgeX client (`internal/edgex`)
 
-- [ ] 3.1 Implement `Client` construction: dedicated `http.Client`, optional gateway CA bundle, direct/gateway base-URL resolver per service
-- [ ] 3.2 Implement the shared `get` helper: per-request timeout context, bearer header, path escaping, query encoding, JSON decoding, `*APIError` (status, service, EdgeX message or 200-byte text excerpt) with `IsNotFound`/`IsUnauthorized`/`IsLocked` helpers
-- [ ] 3.3 Add a limit clamp helper (never `-1`, never above the cap) and unit tests
-- [ ] 3.4 Add DTOs (only the fields used) for ping, version, device service, device, device profile (basic info + full), reading, event, count, device core command
-- [ ] 3.5 Implement core-metadata methods: ping, version, device services, devices (all/by service/by profile), device by name, profiles (basic info/by manufacturer/by model/by both), profile by name
-- [ ] 3.6 Implement core-data methods: ping, version, readings by device (+resource) with and without time range, event count and reading count by device
-- [ ] 3.7 Implement core-command methods: ping, version, device commands (all/by device), GET command with `ds-pushevent=false&ds-returnevent=true&ds-regexcmd=false`
-- [ ] 3.8 Add `testdata/` fixtures modeled on the official v4.0.2 OpenAPI examples and DTOs (neutral names, RFC 5737 IPs)
-- [ ] 3.9 Write tests: GET-only, path escaping, pagination/labels query, gateway prefixes, bearer header present/absent, timeout, JSON 404, plain-text 503, 401, safe command flags
+- [x] 3.1 Implement `Client` construction: dedicated `http.Client`, optional gateway CA bundle, direct/gateway base-URL resolver per service
+- [x] 3.2 Implement the shared `get` helper: per-request timeout context, bearer header, path escaping, query encoding, JSON decoding, `*APIError` (status, service, EdgeX message or 200-byte text excerpt) with `IsNotFound`/`IsUnauthorized`/`IsLocked` helpers
+- [x] 3.3 Add a limit clamp helper (never `-1`, never above the cap) and unit tests
+- [x] 3.4 Add DTOs (only the fields used) for ping, version, device service, device, device profile (basic info + full), reading, event, count, device core command
+- [x] 3.5 Implement core-metadata methods: ping, version, device services, devices (all/by service/by profile), device by name, profiles (basic info/by manufacturer/by model/by both), profile by name
+- [x] 3.6 Implement core-data methods: ping, version, readings by device (+resource) with and without time range, event count and reading count by device
+- [x] 3.7 Implement core-command methods: ping, version, device commands (all/by device), GET command with `ds-pushevent=false&ds-returnevent=true&ds-regexcmd=false`
+- [x] 3.8 Add `edgextest` fake EdgeX with `testdata/` fixtures modeled on the official v4.0.2 OpenAPI examples and DTOs (neutral names, RFC 5737 IPs)
+- [x] 3.9 Write tests: GET-only, path escaping, pagination/labels query, gateway prefixes, bearer header present/absent, timeout, JSON 404, plain-text 503, 401, safe command flags
 
 ## 4. Safety primitives (`internal/tools`)
 
