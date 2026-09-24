@@ -363,7 +363,7 @@ func TestScrubURLUserinfo(t *testing.T) {
 		"tcp://u:p@192.0.2.1:1883":       "tcp://***REDACTED***@192.0.2.1:1883",
 		"https://192.0.2.1/path?a=b":     "https://192.0.2.1/path?a=b",
 		"see mqtt://reader@host and x":   "see mqtt://***REDACTED***@host and x",
-		"plain text with user@host.test": "plain text with user@host.test",
+		"plain text with user@host.example": "plain text with user@host.example",
 	}
 	for in, want := range tests {
 		if got := edgex.ScrubURLUserinfo(in); got != want {

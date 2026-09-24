@@ -53,7 +53,7 @@ helpers). We copy only the JSON field names and verify them against the DTO sour
 below.
 
 ### D4. Package boundaries
-- `internal/config`: `Config` struct, `Load(args []string, getenv func(string) string)`
+- `internal/config`: `Config` struct, `Load(args []string, getenv func(string) string, out io.Writer)`
   (pure and testable), and `Validate()`. Flags use the standard `flag` package. Precedence
   is flag > env > default, and "explicitly set" is detected with `flag.Visit`.
 - `internal/edgex`: `Client` with one `http.Client` (no `DefaultClient`), a
