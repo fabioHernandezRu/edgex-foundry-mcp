@@ -1,0 +1,66 @@
+schema: spec-driven
+
+# Project context, injected into every OpenSpec artifact instruction.
+context: |
+  Purpose:
+    edgex-foundry-mcp is an open-source Model Context Protocol (MCP) server that lets
+    AI agents inspect and (optionally) operate an EdgeX Foundry (LF Edge) deployment
+    through its public REST APIs. It is NOT related to any crypto exchange project
+    that happens to use the "edgex" name.
+
+  Tech stack:
+    - Go (latest stable release; version pinned in go.mod).
+    - Official MCP Go SDK: github.com/modelcontextprotocol/go-sdk (version pinned in go.mod).
+    - EdgeX Foundry v4 ("Odessa"), which still exposes REST API v3 (/api/v3/...).
+    - Transports: stdio (default) and streamable HTTP (opt-in flag).
+
+  Architecture:
+    - cmd/edgex-foundry-mcp: main package; flag/env parsing, transport selection, wiring.
+    - internal/config: configuration model, flag + env loading, validation.
+    - internal/edgex: small typed HTTP client for core-metadata, core-data and
+      core-command. Knows URLs, auth headers, timeouts, error decoding. No MCP types.
+    - internal/tools: MCP tool/resource handlers. Translate tool input into client
+      calls and shape compact, LLM-friendly JSON output. No raw HTTP.
+    - Two addressing modes: direct per-service base URLs (defaults :59881 metadata,
+      :59880 data, :59882 command) OR a single API gateway URL + JWT bearer token
+      for secure-mode EdgeX (gateway routes: /core-metadata/api/v3/..., etc.).
+
+  Safety model (non-negotiable):
+    - Read-only by default. Only tools whose EdgeX calls cannot change device or
+      metadata state are registered unless the server is started with --enable-writes.
+    - Write/actuation tools (SET commands, metadata mutations) are registered only with
+      --enable-writes, and their descriptions MUST state that they can affect physical
+      hardware.
+    - Never log bearer tokens. Redact device protocol properties that may carry
+      credentials (e.g. keys containing password, secret, token, key, credential,
+      auth) in logs AND in tool output.
+    - Every outbound HTTP call has a timeout; every list result is bounded (limit caps).
+
+  Testing rules:
+    - `go test ./...` must pass with no live EdgeX and no network access.
+    - Use net/http/httptest fake EdgeX servers with payloads modeled on the official
+      EdgeX API documentation / OpenAPI specs. Prefer table-driven tests.
+    - Live validation against a running EdgeX is done separately (edgex-live-check skill).
+
+  Conventions:
+    - English only in code, comments, docs, specs and commit messages.
+    - gofmt + golangci-lint clean; go vet clean.
+    - Conventional commits (feat:, fix:, docs:, chore:, test:, ci:, refactor:).
+    - No "Co-Authored-By" trailers in commits.
+    - No organization, customer or site names, credentials, device IDs, private IPs or
+      internal hostnames anywhere. Use neutral examples (Random-Integer-Device, site-a,
+      192.0.2.x from RFC 5737).
+    - Every EdgeX endpoint and SDK signature used must be verified against official
+      sources and recorded in the change's design.md.
+
+rules:
+  proposal:
+    - Include a "Non-goals" section.
+    - State whether the change adds read-only or write tools, and how the safety model applies.
+  design:
+    - Include a "Verification notes" section listing each EdgeX endpoint / SDK API used and the official source URL it was checked against.
+  specs:
+    - Every requirement touching a tool states whether it is read-only or gated by --enable-writes.
+  tasks:
+    - Group tasks by layer (config, edgex client, tools, tests, docs, CI).
+    - Each tool task ends with a test and a README tool-table update.
