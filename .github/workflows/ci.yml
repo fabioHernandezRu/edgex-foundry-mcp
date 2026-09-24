@@ -31,6 +31,12 @@ jobs:
         run: go build ./...
       - name: dev compose file is valid
         run: docker compose -f dev/docker-compose.yml config -q
+      - name: goreleaser check
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: v2.18.2
+          args: check
 
   publish-guard:
     name: publish-guard (generic rules)

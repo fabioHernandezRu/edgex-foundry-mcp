@@ -1,0 +1,68 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  goreleaser:
+    name: GoReleaser (binaries, checksums, OCI image)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # GitHub release
+      packages: write # ghcr.io image
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+      - name: Tests
+        run: make test
+      - name: publish-guard
+        run: scripts/publish_guard.sh --ci --files-only
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: v2.18.2
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  mcp-registry:
+    name: Publish to the MCP registry
+    needs: goreleaser
+    # Opt-in: the ghcr.io package must be public first (the registry verifies
+    # the image label anonymously). Set the repository variable
+    # MCP_REGISTRY_PUBLISH=true once it is.
+    if: vars.MCP_REGISTRY_PUBLISH == 'true' && !contains(github.ref_name, '-')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # GitHub OIDC login to the registry
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install mcp-publisher v1.8.1
+        run: |
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/download/v1.8.1/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+      - name: Set version from tag
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          jq --arg v "$version" '.version = $v | .packages[0].identifier = (.packages[0].identifier | sub(":[^:]+$"; ":" + $v))' server.json > server.tmp.json
+          mv server.tmp.json server.json
+          cat server.json
+      - name: Publish
+        run: |
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish
