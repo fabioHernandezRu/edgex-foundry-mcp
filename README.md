@@ -13,8 +13,8 @@ credentials and bounded output. It is written in Go on the official
 - **Targets:** EdgeX Foundry v4 (tested against the 4.0.x API contract, REST API `/api/v3`),
   including linux/arm64 deployments such as a Raspberry Pi 4.
 - **Transports:** stdio (default) and streamable HTTP.
-- **Status:** Phase 1 has read-only tools. Write tools are planned behind an explicit
-  opt-in (see [Roadmap](#roadmap)).
+- **Status:** read-only tools by default. Write tools are available behind an explicit
+  `--enable-writes` opt-in.
 
 ## Quickstart (about 5 minutes)
 
@@ -73,8 +73,10 @@ Claude Desktop (`claude_desktop_config.json`):
 
 ## Tools
 
-All Phase 1 tools are **read-only**: they only issue HTTP GET requests, and they never
-change EdgeX metadata, events or readings.
+### Read-only tools (always available)
+
+These tools only issue HTTP GET requests, and they never change EdgeX metadata, events or
+readings.
 
 | Tool | Access | EdgeX endpoint(s) | Purpose |
 |---|---|---|---|
@@ -89,6 +91,19 @@ change EdgeX metadata, events or readings.
 | `device_data_stats` | read | core-data `GET /api/v3/event/count/device/name/{name}`, `/reading/count/device/name/{name}` | Event and reading counts, time of the newest reading |
 | `list_device_commands` | read | core-command `GET /api/v3/device/name/{name}`, `/device/all` | Commands with GET/SET support and parameters |
 | `read_device_command` | read (live) | core-command `GET /api/v3/device/name/{name}/{command}?ds-pushevent=false&ds-returnevent=true&ds-regexcmd=false` | **Live read of the physical device**; see the safety model |
+
+### Write tools (only with `--enable-writes`)
+
+These tools are **not registered** unless the server starts with `--enable-writes`. They
+can affect physical hardware. Each one validates its input before sending anything,
+accepts `dryRun: true` to show the exact request without sending it, logs a WARN audit
+line, and never retries.
+
+| Tool | Access | EdgeX endpoint | Purpose |
+|---|---|---|---|
+| `set_device_command` | **write** | core-command `PUT /api/v3/device/name/{name}/{command}` | SET a command. The values must cover exactly the command's parameters, and they are checked against the value type and the profile's min/max |
+| `set_device_admin_state` | **write** | core-metadata `PATCH /api/v3/device` | LOCK or UNLOCK a device. A locked device rejects commands and stops its auto events |
+| `set_device_operating_state` | **write** | core-metadata `PATCH /api/v3/device` | Set UP, DOWN or UNKNOWN. **DOWN blocks every command until it is set back to UP** |
 
 | Resource | EdgeX endpoint | Purpose |
 |---|---|---|
@@ -108,10 +123,18 @@ This server can reach IoT hardware, so safety is a feature, not an afterthought.
   non-mutating GET requests are registered, and each carries the MCP `readOnlyHint`
   annotation. A test calls every tool and asserts that the fake EdgeX never sees a
   PUT/POST/PATCH/DELETE request.
-- **Write gate.** Write and actuation tools (planned for Phase 2) live in a separate set,
-  registered only with `--enable-writes`. Registration fails unless each description says
-  it affects *physical hardware* or *modifies EdgeX metadata*. Enabling writes logs a
-  warning.
+- **Write gate.** The write tools live in a separate set, registered only with
+  `--enable-writes`. Registration fails unless each description says it affects *physical
+  hardware* or *modifies EdgeX metadata*, and it is not marked read-only.
+  - Enabling writes logs a warning, and the server instructions tell the model to confirm
+    with the user first.
+  - Write requests send only the fields that change. A state PATCH never includes
+    `protocols`.
+  - Every write, including dry runs and failures, produces one `edgex write` WARN audit
+    line with redacted values.
+  - Writes are never retried, because any failed SET counts toward EdgeX's device failure
+    tracking.
+  - State changes reach the device service asynchronously.
 - **Live device reads are explicit.** `read_device_command` makes the device service read
   the physical device.
   - It requests a read only. What a read does on the device is defined by its device
@@ -166,7 +189,7 @@ Flags take precedence over environment variables, which take precedence over def
 | `--max-results` | `EDGEX_MAX_RESULTS` | `100` | Cap on items per list (1..1024) |
 | `--transport` | `EDGEX_MCP_TRANSPORT` | `stdio` | `stdio` or `http` |
 | `--http-addr` | `EDGEX_MCP_HTTP_ADDR` | `127.0.0.1:8080` | Listen address for `--transport http` (endpoint `/mcp`) |
-| `--enable-writes` | `EDGEX_ENABLE_WRITES` | `false` | Register write/actuation tools (none exist yet) |
+| `--enable-writes` | `EDGEX_ENABLE_WRITES` | `false` | Register the write tools (`set_device_command`, `set_device_admin_state`, `set_device_operating_state`) |
 | `--disable-device-reads` | `EDGEX_DISABLE_DEVICE_READS` | `false` | Do not register `read_device_command` |
 | `--log-level` | `EDGEX_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 | `--version` | n/a | n/a | Print the version and exit |
@@ -233,8 +256,6 @@ This is a portfolio project, and the engineering process is visible in the repos
 
 Phase 2 changes are proposed in [`openspec/changes/`](openspec/changes):
 
-- **Write tools behind `--enable-writes`:** core-command SET, and device
-  adminState/operatingState.
 - **Secure-mode end-to-end example:** API gateway, JWT and TLS.
 - **Releases:** goreleaser binaries for linux/amd64 and linux/arm64, and publishing to the
   MCP registry.

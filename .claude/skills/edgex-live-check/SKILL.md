@@ -47,6 +47,25 @@ device-virtual should list `Random-*-Device` devices, and readings should be rec
   the spec scenario. Confirm that no protocol credentials or tokens appear in the output
   or in stderr logs.
 
+## 3b. Write tools (ONLY if the user explicitly asked in this conversation)
+
+Use device-virtual only, never a real device, and restore every state you change.
+
+```sh
+make build
+go run ./scripts/mcpcall -server-args "--enable-writes" -- tools/list | grep set_
+# dry run first, then the real call
+go run ./scripts/mcpcall -server-args "--enable-writes" -- call set_device_command '{"device":"Random-Integer-Device","command":"Int8","values":{"Int8":"42"},"dryRun":true}'
+go run ./scripts/mcpcall -server-args "--enable-writes" -- call set_device_command '{"device":"Random-Integer-Device","command":"Int8","values":{"Int8":"42"}}'
+go run ./scripts/mcpcall -- call read_device_command '{"device":"Random-Integer-Device","command":"Int8"}'
+# lock, confirm SET is rejected (423), then UNLOCK again
+go run ./scripts/mcpcall -server-args "--enable-writes" -- call set_device_admin_state '{"device":"Random-Integer-Device","state":"LOCKED"}'
+go run ./scripts/mcpcall -server-args "--enable-writes" -- call set_device_admin_state '{"device":"Random-Integer-Device","state":"UNLOCKED"}'
+```
+
+Check the server's stderr for one `edgex write` WARN line per call. Never leave a device
+DOWN: a DOWN device rejects every command until it is set back to UP.
+
 ## 4. Report
 
 Give a short table (tool, input, result, spec scenario matched: yes/no), plus the
