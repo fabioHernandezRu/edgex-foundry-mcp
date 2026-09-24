@@ -2,13 +2,19 @@
 # publish_guard.sh - pre-push confidentiality and secret scan.
 #
 # Scans (1) tracked files in the working tree and (2) the commits about to be
-# pushed (messages + added lines) for secrets and confidential data. Matches are
-# always printed masked. Never modifies anything.
+# pushed (messages, added lines, author and committer emails) for secrets and
+# confidential data. Matches are always printed masked. Never modifies anything.
+#
+# Commit identities: author and committer emails must be a GitHub noreply
+# address (*@users.noreply.github.com) or equal to `git config user.email`.
+# Anything else (corporate domains, personal webmail, bot addresses such as
+# noreply@anthropic.com) is reported.
 #
 # Usage:
-#   scripts/publish_guard.sh [--base REF] [--files-only] [--ci]
+#   scripts/publish_guard.sh [--base REF] [--head REF] [--files-only] [--ci]
 #
 #   --base REF    scan commits in REF..HEAD (default: @{upstream}, else origin/main)
+#   --head REF    end of the commit range instead of HEAD (e.g. a PR head SHA)
 #   --files-only  skip the commit-range scan
 #   --ci          generic rules only; ignore the local deny-list
 #
@@ -20,6 +26,7 @@ ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "publish-guard: not 
 cd "$ROOT"
 
 BASE=""
+HEAD_REF="HEAD"
 FILES_ONLY=0
 CI_MODE=0
 while [[ $# -gt 0 ]]; do
@@ -27,7 +34,8 @@ while [[ $# -gt 0 ]]; do
     --base) BASE="${2:-}"; shift 2 ;;
     --files-only) FILES_ONLY=1; shift ;;
     --ci) CI_MODE=1; shift ;;
-    -h|--help) sed -n '2,17p' "$0"; exit 0 ;;
+    --head) HEAD_REF="${2:-}"; shift 2 ;;
+    -h|--help) sed -n '2,24p' "$0"; exit 0 ;;
     *) echo "publish-guard: unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -58,7 +66,6 @@ RULES=(
 # Built-in placeholders that are always acceptable (ERE, matched on the finding text).
 BUILTIN_ALLOW=(
   '@(example\.(com|org|net)|[a-z0-9.-]+\.example)$'
-  'noreply@(anthropic\.com|github\.com)$'
   '@users\.noreply\.github\.com$'
   '(?i)(example|placeholder|redacted|changeme|dummy|fake|xxxx|\*\*\*)'
 )
@@ -123,6 +130,19 @@ scan_commits() {
   done
 }
 
+# Author/committer identity check. The only non-generic allowed address is the
+# one configured locally for this repository; nothing personal is hard-coded.
+scan_identities() {
+  local range="$1" own c who email
+  own=$(git config --get user.email 2>/dev/null || true)
+  while IFS=$'\t' read -r c who email; do
+    [[ -z "$c" ]] && continue
+    [[ "$email" =~ @users\.noreply\.github\.com$ ]] && continue
+    [[ -n "$own" && "${email,,}" == "${own,,}" ]] && continue
+    report "commit ${c:0:10}" "$who-email" "${email:-<empty>}"
+  done < <(git log --format=$'%H\tauthor\t%ae%n%H\tcommitter\t%ce' "$range")
+}
+
 scan_denylist() {
   [[ -f "$DENY_FILE" ]] || return 0
   local term line loc
@@ -153,13 +173,17 @@ if (( ! FILES_ONLY )); then
   fi
   if [[ -n "$BASE" ]]; then
     git rev-parse -q --verify "$BASE" >/dev/null || { echo "publish-guard: unknown base: $BASE" >&2; exit 2; }
-    RANGE="$BASE..HEAD"
+    git rev-parse -q --verify "$HEAD_REF" >/dev/null || { echo "publish-guard: unknown head: $HEAD_REF" >&2; exit 2; }
+    RANGE="$BASE..$HEAD_REF"
   fi
 fi
 
 echo "publish-guard: scanning tracked files${RANGE:+ and commits in $RANGE}$( (( CI_MODE )) && echo ' (CI mode: generic rules only)')"
 scan_files
-[[ -n "$RANGE" ]] && scan_commits "$RANGE"
+if [[ -n "$RANGE" ]]; then
+  scan_commits "$RANGE"
+  scan_identities "$RANGE"
+fi
 if (( ! CI_MODE )); then
   if [[ -f "$DENY_FILE" ]]; then scan_denylist; else echo "publish-guard: no $DENY_FILE (local deny-list skipped)"; fi
 fi

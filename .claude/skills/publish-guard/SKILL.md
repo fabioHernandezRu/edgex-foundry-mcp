@@ -11,6 +11,7 @@ description: Use before EVERY git push (and before opening a PR) in edgex-foundr
 scripts/publish_guard.sh              # tracked files + commits in @{upstream}..HEAD (or origin/main..HEAD)
 scripts/publish_guard.sh --base REF   # scan commits in REF..HEAD instead
 scripts/publish_guard.sh --files-only # skip the commit-range scan
+scripts/publish_guard.sh --head SHA   # end the commit range at SHA instead of HEAD
 ```
 
 Exit code `0` means clean, `1` means findings, and `2` means a usage or environment
@@ -22,6 +23,12 @@ error.
   tokens, PEM private keys, AWS-style access keys and account IDs, GitHub/Slack/API-style
   tokens, credential assignments with non-placeholder values, private IPv4 ranges
   (RFC 1918), email addresses, and hostnames under internal-only TLDs.
+- **Commit identities** (commit-range scan, local and CI): every author and committer
+  email must be a GitHub noreply address (`*@users.noreply.github.com`) or equal to
+  `git config user.email`. Corporate domains, personal webmail and bot addresses such
+  as the Claude bot address (noreply at anthropic.com) are reported. To fix one, the user sets the repo-local
+  identity (`git config --local user.email ...`) and decides whether to rewrite the
+  unpushed commits.
 - **Private deny-list** (local only): `.claude/publish-guard.local.txt`. It is gitignored
   and holds one term per line (`#` comments allowed). Put organization, customer, site or
   hostname terms here that must never reach the public repo. Matches are printed

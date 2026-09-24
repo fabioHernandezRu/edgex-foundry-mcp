@@ -19,7 +19,7 @@ jobs:
       - name: Scan tracked files and PR commits
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            scripts/publish_guard.sh --ci --base "origin/${{ github.base_ref }}"
+            scripts/publish_guard.sh --ci --base "origin/${{ github.base_ref }}" --head "${{ github.event.pull_request.head.sha }}"
           else
             scripts/publish_guard.sh --ci --files-only
           fi
