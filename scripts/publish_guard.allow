@@ -1,0 +1,5 @@
+# Project-wide publish-guard exceptions: one extended regex per line, matched
+# against the (unmasked) finding text. Keep entries narrow and explain each one.
+
+# RFC 5737 documentation ranges are never private, listed for clarity.
+^(192\.0\.2|198\.51\.100|203\.0\.113)\.

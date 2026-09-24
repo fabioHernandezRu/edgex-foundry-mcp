@@ -1,0 +1,38 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  publish-guard:
+    name: publish-guard (generic rules)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Scan tracked files and PR commits
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            scripts/publish_guard.sh --ci --base "origin/${{ github.base_ref }}"
+          else
+            scripts/publish_guard.sh --ci --files-only
+          fi
+
+  openspec:
+    name: openspec validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - run: npm install -g @fission-ai/openspec@1.0.2
+      - run: openspec validate --all --strict
+        env:
+          OPENSPEC_TELEMETRY: "0"

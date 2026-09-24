@@ -1,0 +1,21 @@
+# Build output
+/bin/
+/dist/
+*.test
+*.out
+coverage.*
+
+# Local, never-committed Claude Code and publish-guard files
+.claude/settings.local.json
+CLAUDE.local.md
+.claude/publish-guard.local.txt
+
+# Environment files
+.env
+.env.*
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
