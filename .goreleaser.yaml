@@ -1,0 +1,88 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# Release configuration (GoReleaser v2.18.2). Driven by v* git tags; see the
+# release workflow and .claude/skills/release/SKILL.md.
+version: 2
+
+project_name: edgex-foundry-mcp
+
+before:
+  hooks:
+    - go mod tidy -diff
+
+builds:
+  - id: edgex-foundry-mcp
+    main: ./cmd/edgex-foundry-mcp
+    binary: edgex-foundry-mcp
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: default
+    ids: [edgex-foundry-mcp]
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  use: git
+  sort: asc
+  abbrev: 7
+  filters:
+    exclude:
+      - '^.*?(docs|chore|test|ci|style)(\([^)]+\))?!?:.+$'
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([^)]+\))?!?:.+$'
+      order: 0
+    - title: Bug fixes
+      regexp: '^.*?fix(\([^)]+\))?!?:.+$'
+      order: 1
+    - title: Others
+      order: 999
+
+# Owner and repository come from the git remote, so releases keep working
+# across the repository rename.
+release:
+  prerelease: auto
+  mode: replace
+
+# Multi-arch OCI image: the MCP registry has no package type for plain binaries.
+# OCI references must be lowercase; the registry name label is case-sensitive.
+dockers_v2:
+  - id: image
+    ids: [edgex-foundry-mcp]
+    dockerfile: Dockerfile
+    images:
+      - "ghcr.io/fabiohernandezru/edgex-foundry-mcp"
+    tags:
+      - "{{ .Version }}"
+      - "{{ if not .Prerelease }}latest{{ end }}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      io.modelcontextprotocol.server.name: "io.github.fabioHernandezRu/edgex-foundry-mcp"
+      org.opencontainers.image.title: "edgex-foundry-mcp"
+      org.opencontainers.image.description: "MCP server for EdgeX Foundry (LF Edge), read-only by default"
+      org.opencontainers.image.source: "https://github.com/fabioHernandezRu/edgex-foundry-mcp"
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.licenses: "Apache-2.0"
