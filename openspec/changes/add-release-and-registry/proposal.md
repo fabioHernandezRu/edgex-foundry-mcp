@@ -1,6 +1,3 @@
-> **Status: stub (Phase 2).** Only the proposal exists. The `release` skill documents the
-> intended procedure and marks it as not yet wired up.
-
 ## Why
 
 Users on edge devices (Raspberry Pi 4, linux/arm64) should not need a Go toolchain. MCP
@@ -15,12 +12,17 @@ versioned release.
   checksums, and a changelog grouped from conventional commits.
 - `.github/workflows/release.yml`, triggered by a `v*` tag push, with
   `permissions: contents: write` for that job only.
-- `server.json` for the MCP registry, plus the publishing steps.
+- A multi-arch OCI image (`ghcr.io/<owner>/edgex-foundry-mcp`, linux/amd64 and
+  linux/arm64), because the MCP registry has no package type for plain binaries. The image
+  carries the ownership label the registry requires.
+- `server.json` for the MCP registry, published by the release workflow with
+  `mcp-publisher`. The publish step is gated behind an explicit repository variable,
+  because the ghcr.io package must be made public first.
 - Wiring up the `release` skill.
 
 ## Non-goals
 
-- Container images, Homebrew or OS packages.
+- Homebrew or OS packages, and `.mcpb` bundles (they have no per-architecture field).
 - Windows or macOS binaries (possible later).
 
 ## Safety model
