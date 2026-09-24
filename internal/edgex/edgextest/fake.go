@@ -457,6 +457,24 @@ func (f *Fake) setCommand(w http.ResponseWriter, r *http.Request, p string) {
 			WriteError(w, 405, fmt.Sprintf("command %s is read-only", cmd))
 			return
 		}
+		// Real EdgeX falls back to defaults for missing keys or fails with 500;
+		// the fake is strict so a skipped client-side check shows up in tests.
+		params, _ := m["parameters"].([]any)
+		want := map[string]bool{}
+		for _, p := range params {
+			pm, _ := p.(map[string]any)
+			want[fmt.Sprint(pm["resourceName"])] = true
+		}
+		for k := range body {
+			if !want[k] {
+				WriteError(w, 500, fmt.Sprintf("resource %s not found in command %s", k, cmd))
+				return
+			}
+		}
+		if len(body) != len(want) {
+			WriteError(w, 500, "request body does not contain every resource of the command")
+			return
+		}
 		writeJSON(w, 200, map[string]any{"apiVersion": "v3", "statusCode": 200})
 		return
 	}

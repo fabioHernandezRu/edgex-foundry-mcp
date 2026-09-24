@@ -30,8 +30,13 @@ const readDeviceCommandName = "read_device_command"
 var writeWarningPhrases = []string{"physical hardware", "modifies EdgeX metadata"}
 
 // Instructions orient the model when it connects.
-const Instructions = `This server gives read-only access to an EdgeX Foundry (LF Edge) deployment through its REST API v3.
-Start with system_health to confirm core-metadata, core-data and core-command are reachable.
+const Instructions = readOnlyIntro + instructionsBody
+
+const readOnlyIntro = "This server gives read-only access to an EdgeX Foundry (LF Edge) deployment through its REST API v3.\n"
+
+const writeIntro = "This server gives access to an EdgeX Foundry (LF Edge) deployment through its REST API v3. WRITE TOOLS ARE ENABLED: set_device_command, set_device_admin_state and set_device_operating_state can affect physical hardware.\n"
+
+const instructionsBody = `Start with system_health to confirm core-metadata, core-data and core-command are reachable.
 Discover devices with list_devices and list_device_services, inspect a device with get_device and its profile with get_device_profile.
 Readings: get_latest_readings for recent values (newest first), query_readings for a time range, device_data_stats for volumes.
 list_device_commands shows commands; read_device_command performs a LIVE read of a physical device, so use it only when stored readings are not enough.
@@ -43,7 +48,7 @@ func ServerInstructions(enableWrites bool) string {
 	if !enableWrites {
 		return Instructions
 	}
-	return Instructions + "\nWRITE TOOLS ARE ENABLED on this server: tools without readOnlyHint can affect physical hardware or modify EdgeX metadata. Confirm with the user before calling them."
+	return writeIntro + instructionsBody + "\nBefore any write: confirm with the user, call it first with dryRun=true and show the planned request. Never retry a failed write; if the outcome is unknown, check the device state first."
 }
 
 // registration is one tool plus the function that adds it to a server.

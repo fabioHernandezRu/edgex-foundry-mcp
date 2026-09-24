@@ -11,7 +11,25 @@ import (
 // toolError converts an EdgeX client error into a short, actionable message
 // returned to the model as an MCP tool error (isError: true). notFound is used
 // for 404 responses when non-empty. Messages never contain headers or tokens.
+// mappedError carries a model-facing message while keeping the original
+// error chain (e.g. for edgex.StatusOf in audit logs).
+type mappedError struct {
+	msg   string
+	cause error
+}
+
+func (e *mappedError) Error() string { return e.msg }
+func (e *mappedError) Unwrap() error { return e.cause }
+
 func toolError(err error, notFound string) error {
+	var ae *edgex.APIError
+	if !errors.As(err, &ae) {
+		return err
+	}
+	return &mappedError{msg: mapError(err, notFound).Error(), cause: err}
+}
+
+func mapError(err error, notFound string) error {
 	var ae *edgex.APIError
 	if !errors.As(err, &ae) {
 		return err

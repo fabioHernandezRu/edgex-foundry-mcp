@@ -25,5 +25,5 @@
 ## 5. Verification
 
 - [ ] 5.1 `make test lint`, `scripts/openspec_validate.sh` and `scripts/publish_guard.sh` are clean
-- [ ] 5.2 The `safety-reviewer` agent has reviewed the diff, and its findings are addressed
+- [x] 5.2 The `safety-reviewer` agent has reviewed the diff, and its findings are addressed
 - [ ] 5.3 Live check against EdgeX, if available; otherwise record that it was not run

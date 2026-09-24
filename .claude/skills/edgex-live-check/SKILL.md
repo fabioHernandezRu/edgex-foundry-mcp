@@ -58,10 +58,16 @@ go run ./scripts/mcpcall -server-args "--enable-writes" -- tools/list | grep set
 go run ./scripts/mcpcall -server-args "--enable-writes" -- call set_device_command '{"device":"Random-Integer-Device","command":"Int8","values":{"Int8":"42"},"dryRun":true}'
 go run ./scripts/mcpcall -server-args "--enable-writes" -- call set_device_command '{"device":"Random-Integer-Device","command":"Int8","values":{"Int8":"42"}}'
 go run ./scripts/mcpcall -- call read_device_command '{"device":"Random-Integer-Device","command":"Int8"}'
-# lock, confirm SET is rejected (423), then UNLOCK again
+# lock, wait a few seconds (propagation to the device service is asynchronous),
+# confirm SET is rejected (423), then UNLOCK again
 go run ./scripts/mcpcall -server-args "--enable-writes" -- call set_device_admin_state '{"device":"Random-Integer-Device","state":"LOCKED"}'
+sleep 5
+go run ./scripts/mcpcall -server-args "--enable-writes" -- call set_device_command '{"device":"Random-Integer-Device","command":"Int8","values":{"Int8":"7"}}'   # expect "locked or down"
 go run ./scripts/mcpcall -server-args "--enable-writes" -- call set_device_admin_state '{"device":"Random-Integer-Device","state":"UNLOCKED"}'
 ```
+
+A SET right after the LOCK may still succeed, because the lock reaches the device
+service asynchronously. That is expected EdgeX behavior, not a bug.
 
 Check the server's stderr for one `edgex write` WARN line per call. Never leave a device
 DOWN: a DOWN device rejects every command until it is set back to UP.

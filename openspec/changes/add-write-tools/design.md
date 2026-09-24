@@ -44,8 +44,12 @@ Phase 1). The tool then requires:
   - `IntN` uses `ParseInt(bits)`, `UintN` uses `ParseUint(bits)`, and `Float32/64` use
     `ParseFloat`;
   - `Bool` uses `ParseBool`, and `String` accepts anything;
-  - `*Array` values must be valid JSON array text;
-  - `Object` values must be valid JSON;
+  - `*Array` values must be JSON array text, and each element is validated against the
+    base type, bit width and min/max;
+  - `Object` values must be a JSON object;
+  - `NaN` and `Inf` are rejected for floats, because comparisons with NaN always pass
+    min/max;
+  - Int64/Uint64 bounds are compared exactly, with no float64 rounding;
   - `Binary` is rejected;
 - `minimum`/`maximum` from the device profile are respected for numeric scalars. The
   profile comes from core-metadata `GET /device/name/{name}`, then
@@ -78,15 +82,23 @@ Empty strings are rejected for all non-String types, which mirrors the SDK.
 | Tool | readOnlyHint | destructiveHint | idempotentHint |
 |---|---|---|---|
 | `set_device_command` | false | true | false |
-| `set_device_admin_state` | false | false | true |
+| `set_device_admin_state` | false | true | true |
 | `set_device_operating_state` | false | true | true |
 
-Setting a device to DOWN makes every command fail with 423 until it is set back to UP, so
-that tool is marked destructive and says so in its description.
+Setting a device to DOWN makes every command fail with 423 until it is set back to UP.
+LOCKED has the same effect and also stops auto events, so both state tools are marked
+destructive (changed after the safety review). Clients that auto-approve non-destructive
+tools therefore still ask before running them.
 
 ### D6. Audit log and no retries
 - Each write logs one WARN line `edgex write` with `tool`, `device`, `command` or `field`,
-  `dryRun`, the redacted `values` or `state`, and `outcome` (ok or the error).
+  `dryRun`, the redacted `values` or `state`, and `outcome`.
+- `outcome` is `ok`, `error` or `error: HTTP <status>`. It never includes error text,
+  because validation and EdgeX messages can echo the submitted values. This was changed
+  after the safety review, and validation messages no longer quote values either.
+- When a write times out, loses its connection, gets a 503 or an unreadable response, the
+  error the model sees says **OUTCOME UNKNOWN**. The write may have been applied, so the
+  device must be checked before any retry.
 - Writes are never retried. Any failed SET, including a 400 or 423, counts as a failure in
   the device service. With `AllowedFails > 0` it can mark the device DOWN.
 

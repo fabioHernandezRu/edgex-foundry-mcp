@@ -400,7 +400,7 @@ func TestSetCommandErrors(t *testing.T) {
 	}{
 		{"Random-Integer-Device", "NoSuchCommand", 404},
 		{"Example-MQTT-Sensor", "Temperature", 423},
-		{"Random-Float-Device", "Float64", 0},
+		{"Random-Float-Device", "Float64", 500},
 	}
 	for _, tt := range tests {
 		err := c.SetCommand(ctx, tt.device, tt.command, map[string]string{"x": "1"})

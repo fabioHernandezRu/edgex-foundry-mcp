@@ -90,7 +90,11 @@ func TestSetDeviceCommandDryRun(t *testing.T) {
 
 func TestSetDeviceCommandLockedAndNoRetry(t *testing.T) {
 	e := writeEnv(t)
-	e.mustCall(t, "set_device_admin_state", map[string]any{"device": "Random-Integer-Device", "state": "LOCKED"})
+	// Real EdgeX propagates a LOCK asynchronously, so the 423 is injected
+	// directly instead of relying on a preceding set_device_admin_state.
+	e.fake.Handle("core-command", "/api/v3/device/name/Random-Integer-Device/Int8", func(w http.ResponseWriter, r *http.Request) {
+		edgextest.WriteError(w, http.StatusLocked, "request failed, status code: 423, err: device Random-Integer-Device locked")
+	})
 	e.mustFail(t, "set_device_command", map[string]any{
 		"device": "Random-Integer-Device", "command": "Int8", "values": map[string]any{"Int8": "1"},
 	}, "locked or down")
@@ -114,8 +118,8 @@ func TestSetDeviceCommandLockedAndNoRetry(t *testing.T) {
 	if puts != 1 {
 		t.Errorf("failed SET sent %d times, want exactly 1", puts)
 	}
-	if !strings.Contains(e.logs.String(), "outcome=\"error: ") {
-		t.Error("failure not audited")
+	if !strings.Contains(e.logs.String(), "outcome=\"error: HTTP 500\"") {
+		t.Error("failure not audited with its status")
 	}
 }
 
@@ -165,4 +169,39 @@ func TestWriteToolsAbsentWithoutGate(t *testing.T) {
 	if w := mutating(e); len(w) != 0 {
 		t.Errorf("writes sent: %+v", w)
 	}
+}
+
+func TestWriteAuditRedactsAndOmitsToken(t *testing.T) {
+	e := newEnv(t, setup{opts: tools.Options{EnableWrites: true}, token: "test-token-value"})
+	// A credential-like resource name: its value must never appear in logs,
+	// neither in the values attribute nor through an error message.
+	e.fake.Handle("core-command", "/api/v3/device/name/Random-Integer-Device", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"apiVersion":"v3","statusCode":200,"deviceCoreCommand":{"deviceName":"Random-Integer-Device","profileName":"Random-Integer-Device",` +
+			`"coreCommands":[{"name":"DoorKeyCode","set":true,"parameters":[{"resourceName":"DoorKeyCode","valueType":"Uint32"}]}]}}`))
+	})
+	e.mustFail(t, "set_device_command", map[string]any{
+		"device": "Random-Integer-Device", "command": "DoorKeyCode", "values": map[string]any{"DoorKeyCode": "99999999999"},
+	}, "not a valid Uint32")
+	logs := e.logs.String()
+	if strings.Contains(logs, "99999999999") {
+		t.Error("SET value leaked into the audit log")
+	}
+	if !strings.Contains(logs, "DoorKeyCode:***REDACTED***") {
+		t.Errorf("audit line lacks the redacted value: %s", logs)
+	}
+	if strings.Contains(logs, "test-token-value") {
+		t.Error("token leaked into logs")
+	}
+}
+
+func TestWriteOutcomeUnknownOnTimeoutLikeErrors(t *testing.T) {
+	e := writeEnv(t)
+	e.fake.Handle("core-command", "/api/v3/device/name/Random-Integer-Device/Int8", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte("request timeout"))
+	})
+	e.mustFail(t, "set_device_command", map[string]any{
+		"device": "Random-Integer-Device", "command": "Int8", "values": map[string]any{"Int8": "1"},
+	}, "OUTCOME UNKNOWN")
 }

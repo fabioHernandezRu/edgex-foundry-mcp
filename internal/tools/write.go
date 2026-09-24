@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"net/http"
 	"net/url"
 	"slices"
 	"strings"
@@ -40,9 +41,14 @@ func auditWrite(log *slog.Logger, tool, device string, dryRun bool, attrs []any,
 	if log == nil {
 		return
 	}
+	// The outcome never includes error text: validation and EdgeX messages can
+	// echo the submitted values, which are only logged in redacted form.
 	outcome := "ok"
 	if err != nil {
-		outcome = "error: " + err.Error()
+		outcome = "error"
+		if st := edgex.StatusOf(err); st != 0 {
+			outcome = fmt.Sprintf("error: HTTP %d", st)
+		}
 	}
 	args := append([]any{"tool", tool, "device", device, "dryRun", dryRun}, attrs...)
 	args = append(args, "outcome", outcome)
@@ -87,7 +93,7 @@ func setDeviceCommandTool(c *edgex.Client, log *slog.Logger) registration {
 			return nil, out, nil
 		}
 		if err := c.SetCommand(ctx, in.Device, in.Command, in.Values); err != nil {
-			return nil, WriteOut{}, toolError(err, fmt.Sprintf("device %q or command %q not found", in.Device, in.Command))
+			return nil, WriteOut{}, writeError(err, fmt.Sprintf("device %q or command %q not found", in.Device, in.Command), "read_device_command")
 		}
 		out.Result = "SET accepted by EdgeX"
 		return nil, out, nil
@@ -155,6 +161,18 @@ func validateSetCommand(ctx context.Context, c *edgex.Client, in SetCommandIn) e
 	return nil
 }
 
+// writeError maps a failed write. When the request may have reached EdgeX but
+// no definitive answer came back (timeout, connection lost, 503, unreadable
+// response), it says so explicitly so the model checks state before retrying.
+func writeError(err error, notFound, checkTool string) error {
+	te := toolError(err, notFound)
+	var ae *edgex.APIError
+	if errors.As(err, &ae) && (ae.Timeout || ae.Status == 0 || ae.Status == http.StatusServiceUnavailable || ae.Err != nil) {
+		return fmt.Errorf("%w; OUTCOME UNKNOWN: the write may have been applied, check the device with %s before retrying", te, checkTool)
+	}
+	return te
+}
+
 func toAnyMap(m map[string]string) map[string]any {
 	out := make(map[string]any, len(m))
 	for k, v := range m {
@@ -196,7 +214,7 @@ func stateTool(c *edgex.Client, log *slog.Logger, name, field string, allowed []
 				return nil, out, nil
 			}
 			if err := c.UpdateDeviceState(ctx, in.Device, field, in.State); err != nil {
-				return nil, WriteOut{}, toolError(err, fmt.Sprintf("device %q not found", in.Device))
+				return nil, WriteOut{}, writeError(err, fmt.Sprintf("device %q not found", in.Device), "get_device")
 			}
 			out.Result = fmt.Sprintf("%s set to %s; EdgeX propagates it to the device service asynchronously", field, in.State)
 			return nil, out, nil
@@ -208,7 +226,7 @@ func setDeviceAdminStateTool(c *edgex.Client, log *slog.Logger) registration {
 		"WRITE: lock or unlock a device in EdgeX core-metadata (adminState LOCKED or UNLOCKED). This modifies EdgeX metadata and affects physical hardware operation: "+
 			"a LOCKED device rejects all commands (HTTP 423) and its automatic readings stop. The change reaches the device service asynchronously. "+
 			"Only available with --enable-writes; confirm with the user before calling it.",
-		&mcp.ToolAnnotations{Title: "Set device admin state", DestructiveHint: boolPtr(false), IdempotentHint: true})
+		&mcp.ToolAnnotations{Title: "Set device admin state", DestructiveHint: boolPtr(true), IdempotentHint: true})
 }
 
 func setDeviceOperatingStateTool(c *edgex.Client, log *slog.Logger) registration {
