@@ -148,6 +148,8 @@ func list(out map[string]any, key string) []map[string]any {
 	return res
 }
 
+var allWriteTools = []string{"set_device_command", "set_device_admin_state", "set_device_operating_state"}
+
 var allReadTools = []string{
 	"system_health", "list_device_services", "list_devices", "get_device",
 	"list_device_profiles", "get_device_profile", "get_latest_readings",
@@ -186,9 +188,26 @@ func TestEnableWritesGate(t *testing.T) {
 	if !strings.Contains(e.logs.String(), "write tools are ENABLED") {
 		t.Error("missing write warning")
 	}
-	// The write set is empty in this change: the tool list equals the read set.
-	if len(e.names) != len(allReadTools) {
-		t.Errorf("registered %v", e.names)
+	want := append(slices.Clone(allReadTools), allWriteTools...)
+	got := slices.Clone(e.names)
+	slices.Sort(want)
+	slices.Sort(got)
+	if !slices.Equal(got, want) {
+		t.Errorf("registered %v, want %v", got, want)
+	}
+	res, err := e.session.ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tool := range res.Tools {
+		if slices.Contains(allWriteTools, tool.Name) {
+			if tool.Annotations == nil || tool.Annotations.ReadOnlyHint {
+				t.Errorf("%s must not be read-only", tool.Name)
+			}
+			if err := tools.ValidateWriteToolForTest(tool); err != nil {
+				t.Error(err)
+			}
+		}
 	}
 }
 
@@ -672,7 +691,7 @@ func TestReadmeListsEveryTool(t *testing.T) {
 		t.Fatal(err)
 	}
 	readme := string(b)
-	for _, name := range allReadTools {
+	for _, name := range append(slices.Clone(allReadTools), allWriteTools...) {
 		if !strings.Contains(readme, "| `"+name+"` |") {
 			t.Errorf("README tool table lacks %s", name)
 		}

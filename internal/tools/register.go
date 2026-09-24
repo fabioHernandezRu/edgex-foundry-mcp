@@ -80,7 +80,7 @@ func Register(s *mcp.Server, c *edgex.Client, o Options) ([]string, error) {
 	}
 	if o.EnableWrites {
 		log.Warn("write tools are ENABLED: tools in the write set can affect physical hardware or modify EdgeX metadata")
-		for _, r := range writeTools(c) {
+		for _, r := range writeTools(c, log) {
 			if err := validateWriteTool(r.tool); err != nil {
 				return nil, err
 			}
@@ -118,9 +118,13 @@ func readTools(c *edgex.Client) []registration {
 }
 
 // writeTools is the write/actuation tool set, registered only with
-// --enable-writes. It is intentionally empty until a change adds write tools.
-func writeTools(_ *edgex.Client) []registration {
-	return nil
+// --enable-writes. Every tool here must pass validateWriteTool.
+func writeTools(c *edgex.Client, log *slog.Logger) []registration {
+	return []registration{
+		setDeviceCommandTool(c, log),
+		setDeviceAdminStateTool(c, log),
+		setDeviceOperatingStateTool(c, log),
+	}
 }
 
 // validateWriteTool enforces the safety model for write tools.
