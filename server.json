@@ -1,0 +1,27 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.fabioHernandezRu/edgex-foundry-mcp",
+  "title": "EdgeX Foundry",
+  "description": "Inspect and optionally operate EdgeX Foundry (LF Edge) via its REST API v3. Read-only by default.",
+  "version": "0.0.0",
+  "repository": {
+    "url": "https://github.com/fabioHernandezRu/edgex-foundry-mcp",
+    "source": "github"
+  },
+  "websiteUrl": "https://github.com/fabioHernandezRu/edgex-foundry-mcp",
+  "packages": [
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/fabiohernandezru/edgex-foundry-mcp:0.0.0",
+      "transport": { "type": "stdio" },
+      "environmentVariables": [
+        { "name": "EDGEX_METADATA_URL", "description": "core-metadata base URL (inside a container, localhost is not the host)", "format": "string" },
+        { "name": "EDGEX_DATA_URL", "description": "core-data base URL", "format": "string" },
+        { "name": "EDGEX_COMMAND_URL", "description": "core-command base URL", "format": "string" },
+        { "name": "EDGEX_GATEWAY_URL", "description": "Secure-mode API gateway URL; replaces the three service URLs", "format": "string" },
+        { "name": "EDGEX_TOKEN", "description": "JWT bearer token for secure mode", "isSecret": true, "format": "string" },
+        { "name": "EDGEX_ENABLE_WRITES", "description": "Register write tools that can affect physical hardware", "default": "false", "format": "boolean" }
+      ]
+    }
+  ]
+}
