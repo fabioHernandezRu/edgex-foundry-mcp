@@ -21,5 +21,5 @@
 
 ## 5. Verification
 
-- [ ] 5.1 `goreleaser check`, `make release-snapshot`, `make test lint`, `scripts/openspec_validate.sh` and `scripts/publish_guard.sh` are clean
-- [ ] 5.2 Record what could not be verified (docker build, Actions run, registry publish)
+- [x] 5.1 `goreleaser check`, `make release-snapshot`, `make test lint`, `scripts/openspec_validate.sh` and `scripts/publish_guard.sh` are clean
+- [x] 5.2 Record what could not be verified — NOT VERIFIED: the OCI image build (no Docker daemon), any GitHub Actions run, the OIDC registry login and publish; verified: goreleaser check, snapshot archives for amd64 and arm64 (static aarch64 binary), mcp-publisher validate of server.json

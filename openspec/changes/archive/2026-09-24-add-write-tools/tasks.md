@@ -24,6 +24,6 @@
 
 ## 5. Verification
 
-- [ ] 5.1 `make test lint`, `scripts/openspec_validate.sh` and `scripts/publish_guard.sh` are clean
+- [x] 5.1 `make test lint`, `scripts/openspec_validate.sh` and `scripts/publish_guard.sh` are clean
 - [x] 5.2 The `safety-reviewer` agent has reviewed the diff, and its findings are addressed
-- [ ] 5.3 Live check against EdgeX, if available; otherwise record that it was not run
+- [x] 5.3 Live check against EdgeX, if available; otherwise record that it was not run — NOT RUN: no Docker daemon in the authoring environment; all write paths tested against the fake EdgeX only
