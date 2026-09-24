@@ -1,6 +1,6 @@
 ## 1. Project scaffolding
 
-- [ ] 1.1 Create `go.mod` (`module github.com/fabioHernandezRu/edgex-foundry-mcp`, `go 1.25.0`) and add `github.com/modelcontextprotocol/go-sdk v1.8.0`
+- [x] 1.1 Create `go.mod` (`module github.com/fabioHernandezRu/edgex-foundry-mcp`, `go 1.25.0`) and add `github.com/modelcontextprotocol/go-sdk v1.8.0`
 - [x] 1.2 Add `Makefile` with `build` (version via `-ldflags -X main.version`), `test` (`go test -race ./...`), `lint` (gofmt check, `go vet`, golangci-lint), `run`, `dev-up`, `dev-down`
 - [x] 1.3 Add `.golangci.yml` (golangci-lint v2 config: default linters plus `gosec`, `bodyclose`, `noctx`, `errorlint`, `misspell`, `revive`)
 
@@ -25,47 +25,47 @@
 
 ## 4. Safety primitives (`internal/tools`)
 
-- [ ] 4.1 Implement `redact.go` (recursive, case-insensitive key-substring redaction to `***REDACTED***`, deep copy) with tests for protocols, nested maps and non-matching keys
-- [ ] 4.2 Implement output shaping helpers: RFC 3339 time conversion (ns/ms), reading formatting (string/number values, binary → `mediaType`+`binarySize`, object values, 1024-byte string truncation), and list envelope (`totalCount`, `offset`, `count`, `nextOffset`)
-- [ ] 4.3 Implement `Register(server, client, Options)` with separate read and write sets, the `--enable-writes` gate (empty write set plus warning), `--disable-device-reads`, and the EdgeX-error-to-tool-error mapping
-- [ ] 4.4 Write tests: default tool list is all `readOnlyHint`; the write-set description check; the write gate logs a warning; `--disable-device-reads` removes only `read_device_command`
+- [x] 4.1 Implement `redact.go` (recursive, case-insensitive key-substring redaction to `***REDACTED***`, deep copy) with tests for protocols, nested maps and non-matching keys
+- [x] 4.2 Implement output shaping helpers: RFC 3339 time conversion (ns/ms), reading formatting (string/number values, binary → `mediaType`+`binarySize`, object values, 1024-byte string truncation), and list envelope (`totalCount`, `offset`, `count`, `nextOffset`)
+- [x] 4.3 Implement `Register(server, client, Options)` with separate read and write sets, the `--enable-writes` gate (empty write set plus warning), `--disable-device-reads`, and the EdgeX-error-to-tool-error mapping
+- [x] 4.4 Write tests: default tool list is all `readOnlyHint`; the write-set description check; the write gate logs a warning; `--disable-device-reads` removes only `read_device_command`
 
 ## 5. Read-only tools (`internal/tools`), each with a test and a README table row
 
-- [ ] 5.1 `system_health`: concurrent ping+version for 3 services, partial failure → `healthy:false`; test; README row
-- [ ] 5.2 `list_device_services`: test; README row
-- [ ] 5.3 `list_devices` (service | profile | labels, mutually exclusive): test (incl. conflicting filters, empty result hint); README row
-- [ ] 5.4 `get_device` (redacted protocols/properties): test (incl. 404 → tool error, redaction); README row
-- [ ] 5.5 `list_device_profiles` (basic info / manufacturer / model): test; README row
-- [ ] 5.6 `get_device_profile` (resources + commands, `includeHidden`): test; README row
-- [ ] 5.7 `get_latest_readings`: test (incl. binary and empty results); README row
-- [ ] 5.8 `query_readings` (`start`/`end` or `window`): test (incl. invalid and ambiguous ranges); README row
-- [ ] 5.9 `device_data_stats`: test (incl. device with no data); README row
-- [ ] 5.10 `list_device_commands`: test; README row
-- [ ] 5.11 `read_device_command` (pre-validation, safe flags, 423 mapping): test; README row
-- [ ] 5.12 Resource template `edgex://deviceprofile/{name}`: test (incl. percent-decoding and not-found); README row
-- [ ] 5.13 Protocol-level test: all tools via in-memory transports; the fake EdgeX sees no mutating method; the token never appears in logs or results
+- [x] 5.1 `system_health`: concurrent ping+version for 3 services, partial failure → `healthy:false`; test; README row
+- [x] 5.2 `list_device_services`: test; README row
+- [x] 5.3 `list_devices` (service | profile | labels, mutually exclusive): test (incl. conflicting filters, empty result hint); README row
+- [x] 5.4 `get_device` (redacted protocols/properties): test (incl. 404 → tool error, redaction); README row
+- [x] 5.5 `list_device_profiles` (basic info / manufacturer / model): test; README row
+- [x] 5.6 `get_device_profile` (resources + commands, `includeHidden`): test; README row
+- [x] 5.7 `get_latest_readings`: test (incl. binary and empty results); README row
+- [x] 5.8 `query_readings` (`start`/`end` or `window`): test (incl. invalid and ambiguous ranges); README row
+- [x] 5.9 `device_data_stats`: test (incl. device with no data); README row
+- [x] 5.10 `list_device_commands`: test; README row
+- [x] 5.11 `read_device_command` (pre-validation, safe flags, 423 mapping): test; README row
+- [x] 5.12 Resource template `edgex://deviceprofile/{name}`: test (incl. percent-decoding and not-found); README row
+- [x] 5.13 Protocol-level test: all tools via in-memory transports; the fake EdgeX sees no mutating method; the token never appears in logs or results
 
 ## 6. Server binary (`cmd/edgex-foundry-mcp`)
 
-- [ ] 6.1 Implement `main`: `--version`, config load/validate, stderr `slog` logger, client, server with `Instructions`, tool registration
-- [ ] 6.2 Implement the stdio transport and the streamable HTTP transport (`/mcp`, stateless, `ReadHeaderTimeout`, warning on non-loopback bind), with graceful shutdown on SIGINT/SIGTERM
-- [ ] 6.3 Write tests for the HTTP bind warning and the `--version` output
+- [x] 6.1 Implement `main`: `--version`, config load/validate, stderr `slog` logger, client, server with `Instructions`, tool registration
+- [x] 6.2 Implement the stdio transport and the streamable HTTP transport (`/mcp`, stateless, `ReadHeaderTimeout`, warning on non-loopback bind), with graceful shutdown on SIGINT/SIGTERM
+- [x] 6.3 Write tests for the HTTP bind warning and the `--version` output
 
 ## 7. Dev tooling
 
-- [ ] 7.1 Add `dev/docker-compose.yml` (EdgeX 4.0.2 non-secure: core-keeper, common-config-bootstrapper, core-metadata, core-data, core-command, device-virtual, postgres 16.3-alpine, mosquitto 2.0.22; loopback ports; pinned tags); validate with `docker compose config` if Docker is available, otherwise state that it was not run
-- [ ] 7.2 Add `scripts/mcpcall` (Go MCP client over stdio/HTTP: `tools/list`, `call <tool> <json>`)
-- [ ] 7.3 Add a test that asserts compose tags are pinned and ports are loopback-only
+- [x] 7.1 Add `dev/docker-compose.yml` (EdgeX 4.0.2 non-secure: core-keeper, common-config-bootstrapper, core-metadata, core-data, core-command, device-virtual, postgres 16.3-alpine, mosquitto 2.0.22; loopback ports; pinned tags); validated with `docker compose config` (no Docker daemon in the authoring environment: the stack itself was not started)
+- [x] 7.2 Add `scripts/mcpcall` (Go MCP client over stdio/HTTP: `tools/list`, `call <tool> <json>`)
+- [x] 7.3 Add a test that asserts compose tags are pinned and ports are loopback-only
 
 ## 8. CI
 
-- [ ] 8.1 Extend `.github/workflows/ci.yml` with a Go job: `go vet`, golangci-lint, `go test -race ./...`, `go build ./...` (latest stable Go), alongside the existing publish-guard and openspec jobs
+- [x] 8.1 Extend `.github/workflows/ci.yml` with a Go job: `go vet`, golangci-lint, `go test -race ./...`, `go build ./...` (latest stable Go), alongside the existing publish-guard and openspec jobs
 
 ## 9. Documentation
 
-- [ ] 9.1 Rewrite `README.md`: EdgeX Foundry (LF Edge) disambiguation, quickstart (dev stack → Claude Desktop / Claude Code config → example prompts), tool table, safety model, configuration reference, OpenSpec + Claude Code workflow links, roadmap
-- [ ] 9.2 Add a test that every registered tool appears in the README tool table
+- [x] 9.1 Rewrite `README.md`: EdgeX Foundry (LF Edge) disambiguation, quickstart (dev stack → Claude Desktop / Claude Code config → example prompts), tool table, safety model, configuration reference, OpenSpec + Claude Code workflow links, roadmap
+- [x] 9.2 Add a test that every registered tool appears in the README tool table
 - [ ] 9.3 Update `CLAUDE.md` and the skills if commands or paths changed during implementation
 
 ## 10. Verification
