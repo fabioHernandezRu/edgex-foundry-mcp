@@ -70,6 +70,6 @@
 
 ## 10. Verification
 
-- [ ] 10.1 Run `make test lint`, `openspec validate --all --strict` and `scripts/publish_guard.sh`; all must be clean
+- [ ] 10.1 Run `make test lint`, `scripts/openspec_validate.sh` (strict; roadmap stubs have no deltas yet) and `scripts/publish_guard.sh`; all must be clean
 - [ ] 10.2 Run the `safety-reviewer` agent on the full diff and address its findings
 - [ ] 10.3 Run the `edgex-live-check` skill if a live EdgeX is available; otherwise record that it was not run

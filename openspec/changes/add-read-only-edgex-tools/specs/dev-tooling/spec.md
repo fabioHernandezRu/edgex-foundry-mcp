@@ -43,9 +43,15 @@ SHALL be available for linux/amd64 and linux/arm64.
 
 ### Requirement: Continuous integration
 GitHub Actions SHALL run on pull requests and on pushes to `main`. The jobs are:
-`go vet`, golangci-lint, `go test -race ./...`, `go build ./...`,
-`openspec validate --all --strict`, and the generic publish-guard scan. Workflow
-permissions SHALL be read-only.
+`go vet`, golangci-lint, `go test -race ./...`, `go build ./...`, strict OpenSpec
+validation (`scripts/openspec_validate.sh`), and the generic publish-guard scan. Workflow
+permissions SHALL be read-only. Strict validation SHALL cover every main spec and every
+change that has spec deltas. Roadmap stubs that contain only `proposal.md` SHALL be
+listed as skipped, not silently ignored.
+
+#### Scenario: Roadmap stub does not break validation
+- **WHEN** `openspec/changes/` contains a change with only `proposal.md`
+- **THEN** the validation script reports it as a skipped roadmap stub and still exits 0 when everything else is valid
 
 #### Scenario: CI checks on a pull request
 - **WHEN** a pull request is opened

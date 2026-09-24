@@ -12,6 +12,7 @@ covers how to work on the code.
 cmd/edgex-foundry-mcp/   main: flags/env, transport (stdio | streamable HTTP), wiring
 internal/config/         configuration model, loading, validation
 internal/edgex/          typed HTTP client for core-metadata, core-data, core-command
+internal/edgex/edgextest fake EdgeX (httptest) + fixtures used by all tests
 internal/tools/          MCP tool + resource handlers (read tools, gated write tools)
 openspec/                specs (source of truth) and changes (proposals in flight)
 dev/                     docker-compose stack: upstream EdgeX (non-secure) + device-virtual
@@ -25,11 +26,12 @@ scripts/                 publish_guard.sh, small helper clients for live checks
 |------|---------|
 | Build | `make build` (binary in `bin/`) |
 | Unit tests (no live EdgeX needed) | `make test` |
-| Lint (gofmt, go vet, golangci-lint) | `make lint` |
+| Lint (gofmt, go vet, golangci-lint v2.14+) | `make lint` |
 | Run over stdio against the dev stack | `make run` |
 | Dev stack up / down | `make dev-up` / `make dev-down` |
-| Spec validation | `openspec validate --all --strict` |
+| Spec validation (strict; skips proposal-only roadmap stubs) | `scripts/openspec_validate.sh` |
 | Confidentiality scan | `scripts/publish_guard.sh` |
+| Call the server like a client | `go run ./scripts/mcpcall -- tools/list` |
 
 ## Golden rules
 

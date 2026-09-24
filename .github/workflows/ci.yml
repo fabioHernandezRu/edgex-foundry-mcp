@@ -56,6 +56,6 @@ jobs:
         with:
           node-version: "22"
       - run: npm install -g @fission-ai/openspec@1.0.2
-      - run: openspec validate --all --strict
+      - run: scripts/openspec_validate.sh
         env:
           OPENSPEC_TELEMETRY: "0"
